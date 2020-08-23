@@ -1,0 +1,4 @@
+*.pickle
+*__pycache__
+samples/
+figures/
