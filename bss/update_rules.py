@@ -31,6 +31,8 @@ def _iss_single(s, X, W, r_inv):
     """
     Update of the demixing matrix with the iterative source steering of the s-th source
     """
+    _, __, n_frames = X.shape
+
     # demix
     Y = W @ X
 
@@ -43,7 +45,7 @@ def _iss_single(s, X, W, r_inv):
     # OP: n_src
     v = v_num[:, :, 0] / v_denom[:, :, 0]
     # OP: 1
-    v[:, s] = 1.0 - 1 / np.sqrt(v_denom[:, s, 0])
+    v[:, s] = 1.0 - np.sqrt(n_frames) / np.sqrt(v_denom[:, s, 0])
 
     # update demixed signals
     # OP: n_frames * n_src
@@ -60,7 +62,7 @@ def _ip_single(s, X, W, r_inv):
 
     # Compute Auxiliary Variable
     # shape: (n_freq, n_chan, n_chan)
-    V = np.matmul((X * r_inv[None, None, :]), tensor_H(X) / n_frames)
+    V = np.matmul((X * r_inv[None, None, :]), tensor_H(X)) / n_frames
 
     WV = np.matmul(W, V)
     rhs = np.eye(n_chan)[None, :, s]  # s-th canonical basis vector

@@ -80,6 +80,8 @@ def auxiva_iss(
     # Initialize the demixed outputs
     Y = X.copy()
 
+    n_frames_sqrt = np.sqrt(n_frames)
+
     for epoch in range(n_iter):
 
         # shape: (n_src, n_frames)
@@ -106,7 +108,7 @@ def auxiva_iss(
             # OP: n_src
             v[:, :] = v_num[:, :, 0] / v_denom[:, :, 0]
             # OP: 1
-            v[:, s] -= 1 / np.sqrt(v_denom[:, s, 0])
+            v[:, s] -= n_frames_sqrt / np.sqrt(v_denom[:, s, 0])
 
             # update demixed signals
             # OP: n_frames * n_src
