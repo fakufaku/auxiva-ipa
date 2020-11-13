@@ -23,27 +23,6 @@ A few routines that are used accross the board.
 import numpy as np
 
 
-def crandn(*shape, dtype=np.complex):
-    """ wrapper for numpy.random.randn that can produce complex numbers """
-    out = np.zeros(shape, dtype=dtype)
-    if iscomplex(out):
-        out = np.random.randn(*shape) + 1j * np.random.randn(*shape)
-        return out.astype(dtype)
-    else:
-        out = np.random.randn(*shape)
-        return out.astype(dtype)
-
-
-def rand_psd(*shape, inner=None, dtype=np.complex):
-    """ Random PSD matrices """
-    if inner is None:
-        shape = shape + (shape[-1],)
-    else:
-        shape = shape + (inner,)
-    X = crandn(*shape, dtype=dtype)
-    return X @ tensor_H(X) / shape[-1]
-
-
 # Compute the demixed output
 def demix(Y, X, W):
     Y[:, :, :] = np.matmul(W, X)

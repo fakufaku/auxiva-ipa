@@ -10,7 +10,8 @@ from scipy.sparse.linalg import (LinearOperator, bicg, bicgstab, cgs, gmres,
                                  lgmres)
 
 from .update_rules import _ipa
-from .utils import crandn, iscomplex, isreal, rand_psd, tensor_H
+from .utils import iscomplex, isreal, tensor_H
+from .random import crandn, rand_psd
 
 
 class HEADUpdate(Enum):
@@ -56,9 +57,7 @@ def head_error(V, W):
     # shape (n_freq, n_chan, n_chan)
     WVW_H = W @ VW_H
 
-    # return np.log(np.mean(np.abs(WVW_H - eye) ** 2))
-    # return np.max(np.abs(WVW_H - eye))
-    return np.mean(np.abs(WVW_H - eye) ** 2)
+    return np.mean(np.abs(WVW_H - eye) ** 2, axis=(1, 2))
 
 
 def head_cost(V, W):
@@ -68,7 +67,7 @@ def head_cost(V, W):
 
     _, logdet = np.linalg.slogdet(W)
 
-    return np.sum(quad) - 2 * np.sum(logdet)
+    return np.sum(quad, axis=(1, 2)) - 2 * logdet
 
 
 def make_transpose_matrix(n, dtype=np.float64):
@@ -233,26 +232,20 @@ def solve_hessian_system(V, X, tol=1e-20, maxiter=None, use_cg=True):
     return sols, info
 
 
-def head_update_ncg(V, W):
+def head_update_ncg(V, W, use_cg=False):
     V, W, eye, n_freq, n_chan = _validate_input_parameters(V, W)
 
     # update the covariance matrices
     W_bc = np.broadcast_to(W[:, None, :, :], V.shape)
     W_H_bc = np.broadcast_to(tensor_H(W)[:, None, :, :], V.shape)
     V = W_bc @ V @ W_H_bc
-    """
-    for f in range(n_freq):
-        for c in range(n_chan):
-            V[f, c] = W[f] @ V[f, c] @ tensor_H(W[f])
-    print(np.allclose(V, V2))
-    """
 
     # construct the deviation
     eps = eye - (V @ eye[..., None])[..., 0]
     # print("EPS:", eps)
 
     # solve the Hessian system
-    ret = solve_hessian_system(V, eps, use_cg=True)
+    ret = solve_hessian_system(V, eps, use_cg=use_cg)
     # print("CGS output:", ret)
     W[:] = (eye - ret[0]) @ W
 
@@ -387,13 +380,13 @@ def head_solver(
 
     if method == HEADUpdate.IPA_NCG:
         W, info_init = head_solver(
-            V, W=W, tol=1e-7, method=HEADUpdate.IPA, info=True, maxiter=maxiter
+            V, W=W, tol=1e-5, method=HEADUpdate.IPA, info=True, maxiter=maxiter
         )
 
         # if we reached the maximum number of iterations, finish early
-        if info_init["epochs"] == maxiter:
+        if info_init["epochs"] == maxiter or info_init["head_error"] <= tol:
             if info:
-                return W, info_content
+                return W, info_init
             else:
                 return W
 
@@ -408,32 +401,29 @@ def head_solver(
 
     c_prev = None
 
+    # compute the error
+    e = head_error(V, W)
+    I_proc = e > tol
+
     for epoch in range(maxiter):
 
-        W = f_update[method](V, W)
+        W[I_proc] = f_update[method](V[I_proc], W[I_proc])
 
         # compute the error
         e = head_error(V, W)
+        I_proc = e > tol
 
         if verbose:
-            c = head_cost(V, W)
-            print(f"{epoch:4d}: error={e:7.5e} cost={c:7.5e}")
+            c_prt = np.sum(head_cost(V, W))
+            e_prt = np.sum(e)
+            print(f"{epoch:4d}: error={e_prt:7.5e} cost={c_prt:7.5e}")
 
-        """
-        if c_prev is None:
-            progress = c
-        else:
-            progress = c - c_prev
-        c_prev = c
-
-        if progress < 0 and np.abs(progress) < tol:
-            break
-        """
-        if e < tol:
+        if np.sum(I_proc) == 0:
             break
 
     if info:
-        c = head_cost(V, W)
+        c = np.sum(head_cost(V, W))
+        e = np.mean(e)
         info_content = {"cost": c, "head_error": e, "epochs": epoch + 1}
 
         if ipa_ncg:

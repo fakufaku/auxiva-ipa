@@ -21,7 +21,7 @@
 This package contains the main algorithms for determined and overdetermined
 independent vector analysis
 """
-from . import default, head, utils
+from . import default, head, random, utils
 from .auxiva_iss import auxiva_iss
 from .auxiva_pca import auxiva_pca
 from .five import five

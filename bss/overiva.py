@@ -114,32 +114,38 @@ def overiva_ip2_block(X, **kwargs):
 
 
 def auxiva(X, **kwargs):
-    kwargs.pop("n_src")
+    if "n_src" in kwargs:
+        kwargs.pop("n_src")
     return overiva(X, n_src=None, update_rule="ip-param", **kwargs)
 
 
 def auxiva2(X, **kwargs):
-    kwargs.pop("n_src")
+    if "n_src" in kwargs:
+        kwargs.pop("n_src")
     return overiva(X, n_src=None, update_rule="ip2-param", **kwargs)
 
 
 def auxiva_iss(X, **kwargs):
-    kwargs.pop("n_src")
+    if "n_src" in kwargs:
+        kwargs.pop("n_src")
     return overiva(X, n_src=None, update_rule="auxiva-iss", **kwargs)
 
 
 def auxiva_ipa(X, **kwargs):
-    kwargs.pop("n_src")
+    if "n_src" in kwargs:
+        kwargs.pop("n_src")
     return overiva(X, n_src=None, update_rule="ipa", **kwargs)
 
 
 def auxiva_ipancg(X, **kwargs):
-    kwargs.pop("n_src")
+    if "n_src" in kwargs:
+        kwargs.pop("n_src")
     return overiva(X, n_src=None, update_rule="ipancg", **kwargs)
 
 
 def auxiva_fullhead(X, **kwargs):
-    kwargs.pop("n_src")
+    if "n_src" in kwargs:
+        kwargs.pop("n_src")
     return overiva(X, n_src=None, update_rule="fullhead", **kwargs)
 
 
@@ -252,6 +258,13 @@ def overiva(
                 _eps, (np.linalg.norm(Y, axis=0) ** 2) / n_freq
             )
 
+        """
+        scale = np.mean(1 / r_inv, axis=1)
+        r_inv *= scale[:, None]
+        Y /= np.sqrt(scale[None, :, None])
+        W /= np.sqrt(scale[None, :, None])
+        """
+
         # Update now the demixing matrix
         # using the requested algorithm
 
@@ -363,10 +376,10 @@ def overiva(
                 V[i] = 0.5 * (vv + tensor_H(vv))
 
             # now solve head
+            tol = 1e-1 if "tol" not in kwargs else kwargs["tol"]
             W[:], info = head_solver(
-                V.swapaxes(0, 1), W=W, method=HEADUpdate.IPA_NCG, tol=1e-1, info=True
+                V.swapaxes(0, 1), W=W, method=HEADUpdate.IPA_NCG, tol=tol, info=True
             )
-            print(info["epochs"])
 
         elif update_rule == "auxiva-iss":
 
@@ -383,7 +396,10 @@ def overiva(
         # Monitor the algorithm progression
         if callback is not None and (epoch + iter_step) in callback_checkpoints:
             Y_tmp = Y.transpose([2, 0, 1])
-            callback(Y_tmp, model)
+            if "eval_demix_mat" in kwargs:
+                callback(Y_tmp, W, model)
+            else:
+                callback(Y_tmp, model)
 
     Y = Y.transpose([2, 0, 1]).copy()
 
