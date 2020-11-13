@@ -21,12 +21,13 @@
 This package contains the main algorithms for determined and overdetermined
 independent vector analysis
 """
-from . import default
+from . import default, head, utils
 from .auxiva_iss import auxiva_iss
 from .auxiva_pca import auxiva_pca
 from .five import five
 from .ogive import ogive, ogive_demix, ogive_mix, ogive_switch
-from .overiva import (auxiva, auxiva2, auxiva_ipa, overiva, overiva_demix_bg,
+from .overiva import (auxiva, auxiva2, auxiva_fullhead, auxiva_ipa,
+                      auxiva_ipancg, overiva, overiva_demix_bg,
                       overiva_ip2_block, overiva_ip2_param, overiva_ip_block,
                       overiva_ip_param)
 from .pca import pca
@@ -50,6 +51,8 @@ algos = {
     "ogive-switch": ogive_switch,
     "auxiva-pca": auxiva_pca,
     "auxiva-ipa": auxiva_ipa,
+    "auxiva-ipancg": auxiva_ipancg,
+    "auxiva-fullhead": auxiva_fullhead,
     "pca": pca,
 }
 
@@ -95,6 +98,8 @@ is_single_source = {
     "auxiva2": False,
     "auxiva-iss": False,
     "auxiva-ipa": False,
+    "auxiva-ipancg": False,
+    "auxiva-fullhead": False,
     "overiva": False,
     "overiva-ip": False,
     "overiva-ip2": False,
@@ -117,6 +122,8 @@ is_dual_update = {
     "auxiva2": True,
     "auxiva-iss": False,
     "auxiva-ipa": True,
+    "auxiva-ipancg": True,
+    "auxiva-fullhead": True,
     "overiva": False,
     "overiva-ip": False,
     "overiva-ip2": True,
@@ -137,6 +144,8 @@ is_determined = {
     "auxiva2": True,
     "auxiva-iss": True,
     "auxiva-ipa": True,
+    "auxiva-ipancg": True,
+    "auxiva-fullhead": True,
     "overiva": False,
     "overiva-ip": False,
     "overiva-ip2": False,
@@ -157,6 +166,8 @@ is_overdetermined = {
     "auxiva2": False,
     "auxiva-iss": False,
     "auxiva-ipa": False,
+    "auxiva-ipancg": False,
+    "auxiva-fullhead": False,
     "overiva": True,
     "overiva-ip": True,
     "overiva-ip2": True,
@@ -177,6 +188,8 @@ is_iterative = {
     "auxiva2": True,
     "auxiva-iss": True,
     "auxiva-ipa": True,
+    "auxiva-ipancg": True,
+    "auxiva-fullhead": True,
     "overiva": True,
     "overiva-ip": True,
     "overiva-ip2": True,

@@ -70,6 +70,7 @@ References
 """
 import numpy as np
 
+from .head import HEADUpdate, head_error, head_solver, head_update_ncg
 from .projection_back import project_back
 from .update_rules import (_block_ip, _ip_double, _ip_double_two_channels,
                            _ip_single, _ipa, _iss_single,
@@ -86,6 +87,8 @@ _update_rules_choice = [
     "ip2-block",
     "ipa",
     "auxiva-iss",
+    "ipancg",
+    "fullhead",
 ]
 _dual_update_rules = ["ip2-param", "ip2-block", "ipa"]
 
@@ -128,6 +131,16 @@ def auxiva_iss(X, **kwargs):
 def auxiva_ipa(X, **kwargs):
     kwargs.pop("n_src")
     return overiva(X, n_src=None, update_rule="ipa", **kwargs)
+
+
+def auxiva_ipancg(X, **kwargs):
+    kwargs.pop("n_src")
+    return overiva(X, n_src=None, update_rule="ipancg", **kwargs)
+
+
+def auxiva_fullhead(X, **kwargs):
+    kwargs.pop("n_src")
+    return overiva(X, n_src=None, update_rule="fullhead", **kwargs)
 
 
 def overiva(
@@ -305,12 +318,55 @@ def overiva(
                 (X * r_inv[k, None, None, :]) @ tensor_H(X) / n_frames
                 for k in range(n_src)
             ]
+
             # enforce hermitian symmetry of covariance matrices
             for i, vv in enumerate(V):
                 V[i] = 0.5 * (vv + tensor_H(vv))
 
             for k in range(n_src):
                 W[:] = _ipa(V, W, k)
+
+        elif update_rule == "ipancg":
+            # compute all the covariance matrices
+            V = np.array(
+                [
+                    (X * r_inv[k, None, None, :]) @ tensor_H(X) / n_frames
+                    for k in range(n_src)
+                ]
+            )
+
+            # enforce hermitian symmetry of covariance matrices
+            for i, vv in enumerate(V):
+                V[i] = 0.5 * (vv + tensor_H(vv))
+
+            # check the value of the head_error
+            error = head_error(V.swapaxes(0, 1), W)
+            print(f"HEAD error:", error)
+            if error < 1e-8:
+                print(f"epoch={epoch} use NCG")
+                W[:] = head_update_ncg(V.swapaxes(0, 1), W)
+            else:
+                for k in range(n_src):
+                    W[:] = _ipa(V, W, k)
+
+        elif update_rule == "fullhead":
+            # compute all the covariance matrices
+            V = np.array(
+                [
+                    (X * r_inv[k, None, None, :]) @ tensor_H(X) / n_frames
+                    for k in range(n_src)
+                ]
+            )
+
+            # enforce hermitian symmetry of covariance matrices
+            for i, vv in enumerate(V):
+                V[i] = 0.5 * (vv + tensor_H(vv))
+
+            # now solve head
+            W[:], info = head_solver(
+                V.swapaxes(0, 1), W=W, method=HEADUpdate.IPA_NCG, tol=1e-1, info=True
+            )
+            print(info["epochs"])
 
         elif update_rule == "auxiva-iss":
 

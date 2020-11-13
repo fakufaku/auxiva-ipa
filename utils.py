@@ -23,15 +23,26 @@ A few routines for complex valued operations
 import numpy as np
 
 
+def iscomplex(x):
+    x = np.array(x)
+    return x.dtype in [np.complex64, np.complex128]
+
+
 def tensor_H(X):
     return np.conj(X).swapaxes(-1, -2)
 
 
-def crandn(*shape):
-    return np.random.randn(*shape) + 1j * np.random.randn(*shape)
+def crandn(*shape, dtype=np.complex):
+    out = np.zeros(shape, dtype=dtype)
+    t = dtype(1.0)
+    if iscomplex(t):
+        out = np.random.randn(*shape) + 1j * np.random.randn(*shape)
+        return out.astype(dtype)
+    else:
+        out = np.random.randn(*shape)
+        return out.astype(dtype)
 
 
 def rand_psd(*shape, dtype=np.complex):
-    shape = list(shape) + [shape[-1]]
-    X = crandn(*shape)
+    X = crandn(*shape, dtype=dtype)
     return X @ tensor_H(X) / shape[-1]
