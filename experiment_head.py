@@ -31,12 +31,12 @@ if __name__ == "__main__":
     np.random.seed(seed)
     print(f"Initializing the RNG with {seed}")
 
-    n_freq = 100
+    n_freq = 10
     n_chan = 6
     n_samples = 60
     verbose = False
     tol = 1e-8
-    maxiter = 100
+    maxiter = 300
     # dtype = np.complex128
     dtype = np.float64
 

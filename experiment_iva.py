@@ -69,13 +69,14 @@ def ISR(W, A):
 if __name__ == "__main__":
     n_repeat = 1
 
-    n_freq = 10
-    n_chan = 6
-    n_frames = 5000
+    n_freq = 100
+    n_chan = 4
+    n_frames = 500
     distrib = "laplace"
-    algos = ["auxiva", "auxiva2", "auxiva-ipa", "auxiva-fullhead"]
+    algos = ["auxiva", "auxiva-fullhead", "auxiva2", "auxiva-ipa"]
 
     n_iter = 30
+    tol_fullhead = 1e-3
     init_W = np.array([np.eye(n_chan) for f in range(n_freq)])
 
     isr_tables = {}
@@ -117,9 +118,10 @@ if __name__ == "__main__":
                 n_iter=n_iter,
                 return_filters=True,
                 model=distrib,
-                tol=1e-1,
+                tol=tol_fullhead,
                 callback=callback,
                 callback_checkpoints=callback_checkpoints,
+                proj_back=False,
                 eval_demix_mat=True,
             )
 
