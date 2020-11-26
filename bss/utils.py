@@ -78,7 +78,7 @@ def cost_iva(X, Y, model=None):
     if model == "laplace":
         target_loss = np.sum(np.linalg.norm(Y, axis=1))
     elif model == "gauss":
-        target_loss = np.sum(np.log(1.0 / np.linalg.norm(Y, axis=1)))
+        target_loss = np.sum(np.log(1.0 / np.maximum(1e-15, np.linalg.norm(Y, axis=1))))
     else:
         raise ValueError("Invalid model")
 

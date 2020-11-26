@@ -5,16 +5,16 @@ import numpy as np
 
 import bss
 from bss.head import HEADUpdate
-from utils import rand_psd
 
 if __name__ == "__main__":
     methods = {
         "IPA": HEADUpdate.IPA,
-        "IP": HEADUpdate.IP,
-        "ISS": HEADUpdate.ISS,
-        "IP2": HEADUpdate.IP2,
-        "NCG": HEADUpdate.NCG,
-        "IPA+NCG": HEADUpdate.IPA_NCG,
+        # "IP": HEADUpdate.IP,
+        # "ISS": HEADUpdate.ISS,
+        # "IP2": HEADUpdate.IP2,
+        # "NCG": HEADUpdate.NCG,
+        # "IPA+NCG": HEADUpdate.IPA_NCG,
+        "FP1": HEADUpdate.FP1,
     }
 
     parser = argparse.ArgumentParser(description="Experiment of solving HEAD problem")
@@ -31,12 +31,12 @@ if __name__ == "__main__":
     np.random.seed(seed)
     print(f"Initializing the RNG with {seed}")
 
-    n_freq = 10
-    n_chan = 6
+    n_freq = 6
+    n_chan = 2
     n_samples = 60
-    verbose = False
+    verbose = True
     tol = 1e-8
-    maxiter = 300
+    maxiter = 100
     # dtype = np.complex128
     dtype = np.float64
 

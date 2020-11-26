@@ -182,7 +182,7 @@ if __name__ == "__main__":
         n_iter += 1
 
     # param ogive
-    ogive_mu = 0.1
+    ogive_mu = 0.3
 
     room_dim = config["room"]["room_kwargs"]["p"]
     mic_array_center = np.array(config["room"]["mic_array_location_m"])

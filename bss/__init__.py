@@ -26,10 +26,12 @@ from .auxiva_iss import auxiva_iss
 from .auxiva_pca import auxiva_pca
 from .five import five
 from .ogive import ogive, ogive_demix, ogive_mix, ogive_switch
-from .overiva import (auxiva, auxiva2, auxiva_fullhead, auxiva_ipa,
+from .overiva import (auxiva, auxiva2, auxiva_fullhead, auxiva_ipa, auxiva_ipa2,
                       auxiva_ipancg, overiva, overiva_demix_bg,
                       overiva_ip2_block, overiva_ip2_param, overiva_ip_block,
                       overiva_ip_param)
+from .iva_ng import iva_ng
+from .fastiva import fastiva
 from .pca import pca
 from .projection_back import project_back
 from .utils import cost_iva
@@ -51,9 +53,12 @@ algos = {
     "ogive-switch": ogive_switch,
     "auxiva-pca": auxiva_pca,
     "auxiva-ipa": auxiva_ipa,
+    "auxiva-ipa2": auxiva_ipa2,
     "auxiva-ipancg": auxiva_ipancg,
     "auxiva-fullhead": auxiva_fullhead,
     "pca": pca,
+    "iva-ng": iva_ng,
+    "fastiva": fastiva,
 }
 
 
@@ -98,6 +103,7 @@ is_single_source = {
     "auxiva2": False,
     "auxiva-iss": False,
     "auxiva-ipa": False,
+    "auxiva-ipa2": False,
     "auxiva-ipancg": False,
     "auxiva-fullhead": False,
     "overiva": False,
@@ -113,30 +119,35 @@ is_single_source = {
     "ogive-mix": True,
     "ogive-demix": True,
     "ogive-switch": True,
+    "iva-ng": False,
+    "fastiva": False,
 }
 
 # This is a list that indicates which algorithms
 # can only work with two or more sources
 is_dual_update = {
     "auxiva": False,
-    "auxiva2": True,
+    "auxiva2": False,
     "auxiva-iss": False,
-    "auxiva-ipa": True,
-    "auxiva-ipancg": True,
-    "auxiva-fullhead": True,
+    "auxiva-ipa": False,
+    "auxiva-ipa2": False,
+    "auxiva-ipancg": False,
+    "auxiva-fullhead": False,
     "overiva": False,
     "overiva-ip": False,
-    "overiva-ip2": True,
+    "overiva-ip2": False,
     "overiva-ip-block": False,
-    "overiva-ip2-block": True,
+    "overiva-ip2-block": False,
     "overiva-demix-bg": False,
-    "auxiva-pca": True,
+    "auxiva-pca": False,
     "pca": False,
     "five": False,
     "ogive": False,
     "ogive-mix": False,
     "ogive-demix": False,
     "ogive-switch": False,
+    "iva-ng": False,
+    "fastiva": False,
 }
 
 is_determined = {
@@ -144,6 +155,7 @@ is_determined = {
     "auxiva2": True,
     "auxiva-iss": True,
     "auxiva-ipa": True,
+    "auxiva-ipa2": True,
     "auxiva-ipancg": True,
     "auxiva-fullhead": True,
     "overiva": False,
@@ -159,6 +171,8 @@ is_determined = {
     "ogive-mix": False,
     "ogive-demix": False,
     "ogive-switch": False,
+    "iva-ng": True,
+    "fastiva": True,
 }
 
 is_overdetermined = {
@@ -166,6 +180,7 @@ is_overdetermined = {
     "auxiva2": False,
     "auxiva-iss": False,
     "auxiva-ipa": False,
+    "auxiva-ipa2": False,
     "auxiva-ipancg": False,
     "auxiva-fullhead": False,
     "overiva": True,
@@ -181,6 +196,8 @@ is_overdetermined = {
     "ogive-mix": True,
     "ogive-demix": True,
     "ogive-switch": True,
+    "iva-ng": False,
+    "fastiva": False,
 }
 
 is_iterative = {
@@ -188,6 +205,7 @@ is_iterative = {
     "auxiva2": True,
     "auxiva-iss": True,
     "auxiva-ipa": True,
+    "auxiva-ipa2": True,
     "auxiva-ipancg": True,
     "auxiva-fullhead": True,
     "overiva": True,
@@ -203,4 +221,6 @@ is_iterative = {
     "ogive-mix": True,
     "ogive-demix": True,
     "ogive-switch": True,
+    "iva-ng": True,
+    "fastiva": True,
 }

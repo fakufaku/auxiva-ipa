@@ -21,6 +21,7 @@ class HEADUpdate(Enum):
     IPA = "IPA"
     IP2 = "IP2"
     IPA_NCG = "IPA_NCG"
+    FP1 = "FP1"
 
 
 def _validate_covmat_parameter(V):
@@ -46,8 +47,7 @@ def _validate_input_parameters(V, W):
 
     return V, W, eye, n_freq, n_chan
 
-
-def head_error(V, W):
+def head_system(V, W):
     V, W, eye, n_freq, n_chan = _validate_input_parameters(V, W)
 
     # shape (n_freq, n_chan, n_chan, 1)
@@ -57,6 +57,11 @@ def head_error(V, W):
     # shape (n_freq, n_chan, n_chan)
     WVW_H = W @ VW_H
 
+    return WVW_H
+
+def head_error(V, W):
+    V, W, eye, n_freq, n_chan = _validate_input_parameters(V, W)
+    WVW_H = head_system(V, W)
     return np.mean(np.abs(WVW_H - eye) ** 2, axis=(1, 2))
 
 
@@ -332,6 +337,19 @@ def head_update_iss(V, W):
 
     return W
 
+def head_update_fp1(V, W):
+    V, W, eye, n_freq, n_chan = _validate_input_parameters(V, W)
+
+    # shape (n_freq, n_chan, n_chan, 1)
+    VW_H = V @ np.conj(W[..., None])
+    VW_H = VW_H[..., 0].swapaxes(-2, -1)  # remove last dim
+
+    W = np.linalg.inv(VW_H)
+
+    scale = W[..., None, :] @ V @ np.conj(W[..., None])
+    W /= np.sqrt(scale[..., 0])
+
+    return W
 
 def head_solver(
     V, W=None, method=HEADUpdate.NCG, maxiter=1000, tol=1e-10, info=False, verbose=False
@@ -374,6 +392,7 @@ def head_solver(
         HEADUpdate.ISS: head_update_iss,
         HEADUpdate.IP2: head_update_ip2,
         HEADUpdate.IPA: head_update_ipa,
+        HEADUpdate.FP1: head_update_fp1,
     }
 
     V, W, eye, n_freq, n_chan = _validate_input_parameters(V, W)
