@@ -87,7 +87,8 @@ _update_rules_choice = [
     "ip2-block",
     "ipa",
     "ipa2",
-    "auxiva-iss",
+    "iss",
+    "iss2",
     "ipancg",
     "fullhead",
     "ipa-all",
@@ -145,7 +146,12 @@ def auxiva2(X, **kwargs):
 def auxiva_iss(X, **kwargs):
     if "n_src" in kwargs:
         kwargs.pop("n_src")
-    return overiva(X, n_src=None, update_rule="auxiva-iss", **kwargs)
+    return overiva(X, n_src=None, update_rule="iss", **kwargs)
+
+def auxiva_iss2(X, **kwargs):
+    if "n_src" in kwargs:
+        kwargs.pop("n_src")
+    return overiva(X, n_src=None, update_rule="iss2", **kwargs)
 
 
 def auxiva_ipa(X, **kwargs):
@@ -430,12 +436,12 @@ def overiva(
             # now solve head
             tol = 1e-1 if "tol" not in kwargs else kwargs["tol"]
             W[:], info = head_solver(
-                V.swapaxes(0, 1), W=W, method=HEADUpdate.IP2, tol=tol, info=True
+                V.swapaxes(0, 1), W=W, method=HEADUpdate.IPA, tol=tol, info=True
             )
 
             demix(Y, X, W[:, :n_src, :])
 
-        elif update_rule == "auxiva-iss":
+        elif update_rule == "iss":
 
             assert n_chan == n_src, "ISS is only implemented in the determined case"
 
@@ -445,6 +451,15 @@ def overiva(
                 _iss_single(k, X, W, r_inv)
 
             demix(Y, X, W[:, :n_src, :])
+
+        elif update_rule == "iss2":
+
+            assert n_chan == n_src, "ISS is only implemented in the determined case"
+
+            for k in range(n_chan):
+                r_inv = aux_variable_update(Y, model)
+                _iss_single(k, X, W, r_inv)
+                demix(Y, X, W[:, :n_src, :])
 
         else:
             raise ValueError("Invalid update rules")

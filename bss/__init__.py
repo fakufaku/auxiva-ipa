@@ -22,11 +22,11 @@ This package contains the main algorithms for determined and overdetermined
 independent vector analysis
 """
 from . import default, head, random, utils
-from .auxiva_iss import auxiva_iss
+# from .auxiva_iss import auxiva_iss
 from .auxiva_pca import auxiva_pca
 from .five import five
 from .ogive import ogive, ogive_demix, ogive_mix, ogive_switch
-from .overiva import (auxiva, auxiva2, auxiva_fullhead, auxiva_ipa, auxiva_ipa2,
+from .overiva import (auxiva, auxiva2, auxiva_fullhead, auxiva_ipa, auxiva_ipa2, auxiva_iss, auxiva_iss2,
                       auxiva_ipancg, overiva, overiva_demix_bg,
                       overiva_ip2_block, overiva_ip2_param, overiva_ip_block,
                       overiva_ip_param)
@@ -40,6 +40,7 @@ algos = {
     "auxiva": auxiva,
     "auxiva2": auxiva2,
     "auxiva-iss": auxiva_iss,
+    "auxiva-iss2": auxiva_iss2,
     "overiva": overiva,
     "overiva-ip": overiva_ip_param,
     "overiva-ip2": overiva_ip2_param,
@@ -102,6 +103,7 @@ is_single_source = {
     "auxiva": False,
     "auxiva2": False,
     "auxiva-iss": False,
+    "auxiva-iss2": False,
     "auxiva-ipa": False,
     "auxiva-ipa2": False,
     "auxiva-ipancg": False,
@@ -129,6 +131,7 @@ is_dual_update = {
     "auxiva": False,
     "auxiva2": False,
     "auxiva-iss": False,
+    "auxiva-iss2": False,
     "auxiva-ipa": False,
     "auxiva-ipa2": False,
     "auxiva-ipancg": False,
@@ -154,6 +157,7 @@ is_determined = {
     "auxiva": True,
     "auxiva2": True,
     "auxiva-iss": True,
+    "auxiva-iss2": True,
     "auxiva-ipa": True,
     "auxiva-ipa2": True,
     "auxiva-ipancg": True,
@@ -179,6 +183,7 @@ is_overdetermined = {
     "auxiva": False,
     "auxiva2": False,
     "auxiva-iss": False,
+    "auxiva-iss2": False,
     "auxiva-ipa": False,
     "auxiva-ipa2": False,
     "auxiva-ipancg": False,
@@ -204,6 +209,7 @@ is_iterative = {
     "auxiva": True,
     "auxiva2": True,
     "auxiva-iss": True,
+    "auxiva-iss2": True,
     "auxiva-ipa": True,
     "auxiva-ipa2": True,
     "auxiva-ipancg": True,

@@ -37,7 +37,7 @@ def score_gauss(Y):
 def iva_ng(
     X,
     n_iter=20,
-    step_size=100.,
+    step_size=0.3,
     proj_back=True,
     model="laplace",
     return_filters=False,

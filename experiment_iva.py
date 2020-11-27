@@ -1,5 +1,6 @@
 import datetime
 import multiprocessing
+import time
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -9,7 +10,7 @@ import bss
 
 config = {
     "master_seed": 8856641,
-    "n_repeat": 1000,
+    "n_repeat": 10,
     "params": [
         {"n_freq": 6, "n_chan": 4},
         {"n_freq": 6, "n_chan": 6},
@@ -17,9 +18,21 @@ config = {
     ],
     "n_frames": 5000,
     "distrib": "laplace",
-    "algos": ["auxiva", "auxiva2", "auxiva-ipa", "auxiva-ipa2", "auxiva-fullhead"],
-    "n_iter": 100,
-    "tol_fullhead": 1e-5,
+    "algos": {
+        "iva-ng-0.3": {"algo": "iva-ng", "kwargs": {"step_size": 0.3, "n_iter": 100}},
+        "iva-ng-0.2": {"algo": "iva-ng", "kwargs": {"step_size": 0.2, "n_iter": 100}},
+        "iva-ng-0.1": {"algo": "iva-ng", "kwargs": {"step_size": 0.1, "n_iter": 100}},
+        "auxiva": {"algo": "auxiva", "kwargs": {"n_iter": 100}},
+        "auxiva2": {"algo": "auxiva2", "kwargs": {"n_iter": 100}},
+        "auxiva-iss": {"algo": "auxiva-iss", "kwargs": {"n_iter": 100}},
+        "auxiva-iss2": {"algo": "auxiva-iss2", "kwargs": {"n_iter": 100}},
+        "auxiva-ipa": {"algo": "auxiva-ipa", "kwargs": {"n_iter": 100}},
+        "auxiva-ipa2": {"algo": "auxiva-ipa2", "kwargs": {"n_iter": 100}},
+        "auxiva-fullhead": {
+            "algo": "auxiva-fullhead",
+            "kwargs": {"tol": 1e-5, "n_iter": 100},
+        },
+    },
 }
 
 
@@ -87,17 +100,7 @@ def ISR(W, A):
 
 def one_loop(args):
     # expand the input arguments
-    (
-        param_index,
-        n_freq,
-        n_chan,
-        n_frames,
-        distrib,
-        algos,
-        n_iter,
-        tol_fullhead,
-        seed,
-    ) = args
+    (param_index, n_freq, n_chan, n_frames, distrib, algos, seed,) = args
 
     # fix the random seed
     np.random.seed(seed)
@@ -117,12 +120,15 @@ def one_loop(args):
     # used to compute the input ISR
     init_W = np.array([np.eye(n_chan) for f in range(n_freq)])
 
-    for algo in algos:
+    for algo, pmt in algos.items():
 
-        if bss.is_dual_update[algo]:
-            callback_checkpoints = np.arange(2, n_iter + 1, 2)
+        algo_name = pmt["algo"]
+        algo_kwargs = pmt["kwargs"]
+
+        if bss.is_dual_update[algo_name]:
+            callback_checkpoints = np.arange(2, algo_kwargs["n_iter"] + 1, 2)
         else:
-            callback_checkpoints = np.arange(1, n_iter + 1)
+            callback_checkpoints = np.arange(1, algo_kwargs["n_iter"] + 1)
 
         isr_list = []
         cost_list = []
@@ -142,16 +148,15 @@ def one_loop(args):
         callback(mix.transpose([2, 0, 1]), init_W.copy(), distrib)
 
         # separate with IVA
-        est, demix_mat = bss.algos[algo](
+        est, demix_mat = bss.algos[algo_name](
             mix.transpose([2, 0, 1]).copy(),
-            n_iter=n_iter,
             return_filters=True,
             model=distrib,
-            tol=tol_fullhead,
             callback=callback,
             callback_checkpoints=callback_checkpoints,
             proj_back=False,
             eval_demix_mat=True,
+            **algo_kwargs,
         )
 
         # print(f"{algo} {ISR(demix_mat, mix_mat)}")
@@ -162,9 +167,7 @@ def one_loop(args):
     return param_index, isr, cost
 
 
-def gen_args(
-    master_seed, n_repeat, params, n_frames, distrib, algos, n_iter, tol_fullhead,
-):
+def gen_args(master_seed, n_repeat, params, n_frames, distrib, algos):
 
     np.random.seed(master_seed)
 
@@ -172,93 +175,9 @@ def gen_args(
     for i, p in enumerate(params):
         for r in range(n_repeat):
             seed = np.random.randint(2 ** 32)
-            args.append(
-                (
-                    i,
-                    p["n_freq"],
-                    p["n_chan"],
-                    n_frames,
-                    distrib,
-                    algos,
-                    n_iter,
-                    tol_fullhead,
-                    seed,
-                )
-            )
+            args.append((i, p["n_freq"], p["n_chan"], n_frames, distrib, algos, seed,))
 
     return args
-
-
-def plot():
-
-    # fig, axes = plt.subplots(2, 1 + len(isr_tables))
-
-    fig, axes = plt.subplot_mosaic(
-        """
-        00002468A
-        11113579B
-        """
-    )
-    map_up = ["0", "2", "4", "6", "8", "A"]
-    map_do = ["1", "3", "5", "7", "9", "B"]
-
-    n_bins = 30
-
-    y_lim_isr = [0, 1]
-    y_lim_cost = [0, 1]
-    x_lim_hist_isr = [0, 1.0]
-    x_lim_hist_cost = [0, 1.0]
-    for i, (algo, table) in enumerate(isr_tables.items()):
-        if bss.is_dual_update[algo]:
-            callback_checkpoints = np.arange(0, n_iter + 1, 2)
-        else:
-            callback_checkpoints = np.arange(0, n_iter + 1)
-
-        # isr
-        y_lim_isr = [
-            min(y_lim_isr[0], table.min()),
-            max(y_lim_isr[1], table.max()),
-        ]
-        # cost
-        y_lim_cost = [
-            min(y_lim_cost[0], cost_tables[algo].min()),
-            max(y_lim_cost[1], cost_tables[algo].max()),
-        ]
-
-        axes["0"].plot(callback_checkpoints, table.mean(axis=0), label=algo)
-        axes["1"].plot(callback_checkpoints, cost_tables[algo].mean(axis=0), label=algo)
-        axes[map_up[i + 1]].hist(
-            table[:, -1], bins=n_bins, orientation="horizontal", density=True
-        )
-        axes[map_do[i + 1]].hist(
-            cost_tables[algo][:, -1],
-            bins=n_bins,
-            orientation="horizontal",
-            density=True,
-        )
-
-        axes[map_up[i + 1]].set_title(algo)
-        axes[map_up[i + 1]].set_xlabel("")
-
-    for i in range(len(isr_tables) + 1):
-        axes[map_up[i]].set_ylim(y_lim_isr)
-        axes[map_do[i]].set_ylim(y_lim_cost)
-        if i > 0:
-            axes[map_up[i]].set_yticks([])
-            axes[map_do[i]].set_yticks([])
-            """
-            axes[map_up[i]].set_xlim(x_lim_hist_isr)
-            axes[map_do[i]].set_xlim(x_lim_hist_cost)
-            """
-
-    axes[map_up[0]].legend()
-    axes[map_do[0]].legend()
-    axes[map_up[0]].set_xlabel("Iteration")
-    axes[map_do[0]].set_xlabel("Iteration")
-    axes[map_up[0]].set_ylabel("ISR")
-    axes[map_do[0]].set_xlabel("Cost")
-
-    plt.show()
 
 
 if __name__ == "__main__":
@@ -268,9 +187,13 @@ if __name__ == "__main__":
     args = gen_args(**config)
 
     # run all the simulation in parallel
+    t_start = time.perf_counter()
     pool = multiprocessing.Pool()
     results = pool.map(one_loop, args)
     pool.close()
+    t_end = time.perf_counter()
+
+    print(f"Processing finished in {t_end - t_start} seconds")
 
     # create structure to collect sim results
     isr_tables = []
