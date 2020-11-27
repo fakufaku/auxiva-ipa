@@ -10,7 +10,7 @@ import bss
 
 config = {
     "master_seed": 8856641,
-    "n_repeat": 10,
+    "n_repeat": 1000,
     "params": [
         {"n_freq": 6, "n_chan": 4},
         {"n_freq": 6, "n_chan": 6},
