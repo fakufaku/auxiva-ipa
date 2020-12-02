@@ -6,7 +6,7 @@
   "sinr": [5, 15, 25],
   "n_targets": "determined",
   "n_interferers": [0],
-  "n_mics": [2, 3, 4, 5],
+  "n_mics": [3, 4, 5, 6],
   "dist_crit_ratio": [1.0],
   "samples_list" : "./samples/metadata.json",
   "room_cache_file": "./data/experiment1_rooms.json",
@@ -29,6 +29,25 @@
   },
 
   "algorithm_kwargs" : {
+    "fastiva" : {
+      "algo" : "fastiva",
+      "kwargs" : {
+        "n_iter" : 100,
+        "model" : "laplace",
+        "init": "pca",
+        "callback_checkpoints" : [1, 2, 3, 4, 6, 8, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
+      }
+    },
+    "iva_ng_0.3" : {
+      "algo" : "fastiva",
+      "kwargs" : {
+        "n_iter" : 100,
+        "model" : "laplace",
+        "step_size": 0.3,
+        "init": "pca",
+        "callback_checkpoints" : [1, 2, 3, 4, 6, 8, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
+      }
+    },
     "auxiva_laplace" : {
       "algo" : "auxiva",
       "kwargs" : {
@@ -53,16 +72,42 @@
         "n_iter" : 100,
         "model" : "laplace",
         "init": "pca",
-        "callback_checkpoints" : [2, 4, 6, 8, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
+        "callback_checkpoints" : [1, 2, 3, 4, 6, 8, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
       }
     },
-    "auxiva_demix_steer_pca" : {
-      "algo" : "auxiva-demix-steer",
+    "auxiva_ipa_pca" : {
+      "algo" : "auxiva-ipa",
       "kwargs" : {
         "n_iter" : 100,
         "model" : "laplace",
         "init": "pca",
-        "callback_checkpoints" : [2, 4, 6, 8, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
+        "callback_checkpoints" : [1, 2, 3, 4, 6, 8, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
+      }
+    },
+    "auxiva_ipa2" : {
+      "algo" : "auxiva-ipa2",
+      "kwargs" : {
+        "n_iter" : 100,
+        "model" : "laplace",
+        "init": "pca",
+        "callback_checkpoints" : [1, 2, 3, 4, 6, 8, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
+      }
+    },
+    "fastiva_nopca" : {
+      "algo" : "fastiva",
+      "kwargs" : {
+        "n_iter" : 100,
+        "model" : "laplace",
+        "callback_checkpoints" : [1, 2, 3, 4, 6, 8, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
+      }
+    },
+    "iva_ng_0.3_nopca" : {
+      "algo" : "fastiva",
+      "kwargs" : {
+        "n_iter" : 100,
+        "model" : "laplace",
+        "step_size": 0.3,
+        "callback_checkpoints" : [1, 2, 3, 4, 6, 8, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
       }
     },
     "auxiva_laplace_nopca" : {
@@ -86,15 +131,23 @@
       "kwargs" : {
         "n_iter" : 100,
         "model" : "laplace",
-        "callback_checkpoints" : [2, 4, 6, 8, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
+        "callback_checkpoints" : [1, 2, 3, 4, 6, 8, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
       }
     },
-    "auxiva_demix_steer_nopca" : {
-      "algo" : "auxiva-demix-steer",
+    "auxiva_ipa_nopca" : {
+      "algo" : "auxiva-ipa",
       "kwargs" : {
         "n_iter" : 100,
         "model" : "laplace",
-        "callback_checkpoints" : [2, 4, 6, 8, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
+        "callback_checkpoints" : [1, 2, 3, 4, 6, 8, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
+      }
+    },
+    "auxiva_ipa2_nopca" : {
+      "algo" : "auxiva-ipa2",
+      "kwargs" : {
+        "n_iter" : 100,
+        "model" : "laplace",
+        "callback_checkpoints" : [1, 2, 3, 4, 6, 8, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
       }
     }
   }

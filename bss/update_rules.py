@@ -231,7 +231,6 @@ def _ipa_make_T(u, q, k):
     return T
 
 
-@profile
 def _ipa(V, W, k):
     """
     Implementation of Iterative Projection with Adjustment (IPS) updates for IVA using the global solution based
@@ -263,7 +262,6 @@ def _ipa(V, W, k):
 
     return W
 
-@profile
 def _ipa2(k, Y, W, r_inv):
 
     n_freq, n_chan, n_frames = Y.shape
@@ -298,7 +296,6 @@ def _ipa2(k, Y, W, r_inv):
     Y[:, [k], :] = Yk
 
 
-@profile
 def _ipa_sub(k, Vk, Vk_inv, a, a_inv_sq, b):
 
     n_freq, n_chan, _ = Vk.shape

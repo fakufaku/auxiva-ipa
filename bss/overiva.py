@@ -176,7 +176,6 @@ def auxiva_fullhead(X, **kwargs):
         kwargs.pop("n_src")
     return overiva(X, n_src=None, update_rule="fullhead", **kwargs)
 
-@profile
 def overiva(
     X,
     n_src=None,
