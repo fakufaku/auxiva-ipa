@@ -73,7 +73,7 @@ import numpy as np
 from .head import HEADUpdate, head_error, head_solver, head_update_ncg
 from .projection_back import project_back
 from .update_rules import (_block_ip, _ip_double, _ip_double_two_channels,
-                           _ip_single, _ipa, _iss_single,
+                           _ip_single, _ipa, _ipa2, _iss_single,
                            _joint_demix_background,
                            _parametric_background_update)
 from .utils import TwoStepsIterator, demix, tensor_H
@@ -176,6 +176,7 @@ def auxiva_fullhead(X, **kwargs):
         kwargs.pop("n_src")
     return overiva(X, n_src=None, update_rule="fullhead", **kwargs)
 
+@profile
 def overiva(
     X,
     n_src=None,
@@ -376,19 +377,8 @@ def overiva(
             for k in range(n_src):
                 r_inv = aux_variable_update(Y, model)
 
-                # compute all the covariance matrices
-                V = [
-                    (X * r_inv[i, None, None, :]) @ tensor_H(X) / n_frames
-                    for i in range(n_src)
-                ]
-
-                # enforce hermitian symmetry of covariance matrices
-                for i, vv in enumerate(V):
-                    V[i] = 0.5 * (vv + tensor_H(vv))
-
-                W[:] = _ipa(V, W, k)
-
-                demix(Y, X, W[:, :n_src, :])
+                # updates both W and Y in-place
+                _ipa2(k, Y, W, r_inv)
 
         elif update_rule == "ipancg":
 

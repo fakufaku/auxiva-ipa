@@ -231,6 +231,7 @@ def _ipa_make_T(u, q, k):
     return T
 
 
+@profile
 def _ipa(V, W, k):
     """
     Implementation of Iterative Projection with Adjustment (IPS) updates for IVA using the global solution based
@@ -254,6 +255,55 @@ def _ipa(V, W, k):
     b = np.array(
         [(W[:, None, k, :] @ V[m] @ np.conj(W[:, m, :, None]))[..., 0] for m in o]
     ).transpose([1, 0, 2])
+
+    u, q = _ipa_sub(k, Vk, Vk_inv, a, a_inv_sq, b)
+
+    T = _ipa_make_T(u[:, :, 0], q[:, :, 0], k)
+    W = T @ W
+
+    return W
+
+@profile
+def _ipa2(k, Y, W, r_inv):
+
+    n_freq, n_chan, n_frames = Y.shape
+
+    o = list(range(n_chan))
+    o.remove(k)
+
+    Vk = (Y * r_inv[k, None, None, :]) @ tensor_H(Y) / n_frames
+    Vk = 0.5 * (Vk + np.conj(Vk))
+    Vk_inv = np.linalg.inv(Vk)
+
+    # shape (n_freq, n_chan - 1, 1)
+    a = (r_inv[None, o, :]) @ np.abs(Y[:, k, :, None]) ** 2
+    a /= n_frames
+    a_inv_sq = 1.0 / np.sqrt(a)
+
+    # shape (n_freq, n_chan - 1, 1)
+    b = (Y[:, o, :] * r_inv[None, o, :]) @ np.conj(Y[:, k, :, None])
+    b = np.conj(b)
+    b /= n_frames
+
+    u, q = _ipa_sub(k, Vk, Vk_inv, a, a_inv_sq, b)
+
+    # compute the new separation matrix
+    T = _ipa_make_T(u[:, :, 0], q[:, :, 0], k)
+    W[:] = T @ W
+
+    # update the output signal
+    Yk = tensor_H(u) @ Y
+    for i, ell in enumerate(o):
+        Y[:, ell, :] += np.conj(q[:, i, :]) * Y[:, k, :]
+    Y[:, [k], :] = Yk
+
+
+@profile
+def _ipa_sub(k, Vk, Vk_inv, a, a_inv_sq, b):
+
+    n_freq, n_chan, _ = Vk.shape
+    o = list(range(n_chan))
+    o.remove(k)
 
     # shape (n_freq, n_chan, n_chan)
     C = np.conj(Vk_inv[:, :, o][:, o, :])
@@ -285,7 +335,7 @@ def _ipa(V, W, k):
     z_hat = z / phi_max
 
     # make an array to receive the solution
-    q = np.zeros((n_freq, n_chan - 1, 1), dtype=W.dtype)
+    q = np.zeros((n_freq, n_chan - 1, 1), dtype=Vk.dtype)
     lambda_ = np.zeros(n_freq, dtype=np.float)
 
     # when v is very small, the solution is given by the dominant eigenvector
@@ -340,7 +390,7 @@ def _ipa(V, W, k):
     q[I_big, :] = a_inv_sq[I_big] * (Sigma[I_big] @ t) - b[I_big] / a[I_big]
 
     # build the other demixing vector
-    x = np.ones((n_freq, n_chan, 1), dtype=W.dtype)
+    x = np.ones((n_freq, n_chan, 1), dtype=Vk.dtype)
     x[:, o, :] = -np.conj(q)
     u = Vk_inv[:, :, k, None] - Vk_inv[:, :, o] @ np.conj(q)
 
@@ -368,7 +418,5 @@ def _ipa(V, W, k):
 
     u *= 1.0 / np.sqrt(lambda_[:, None, None])
 
-    T = _ipa_make_T(u[:, :, 0], q[:, :, 0], k)
-    W = T @ W
+    return u, q
 
-    return W

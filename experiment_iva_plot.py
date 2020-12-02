@@ -9,6 +9,21 @@ import bss
 
 figure_dir = Path("./figures")
 
+title_dict = {
+    "iva-ng-0.3": "ng-0.3",
+    "iva-ng-0.2": "ng-0.2",
+    "iva-ng-0.1": "ng-0.1",
+    "auxiva": "ip",
+    "auxiva2": "ip2",
+    "auxiva-iss": "iss",
+    "auxiva-iss2": "iss2",
+    "auxiva-ipa": "ipa",
+    "auxiva-ipa2": "ipa2",
+    "auxiva-fullhead": "fh",
+}
+
+fail_thresh = -10.0
+
 
 def make_plot(config, params, isr_tables, cost_tables, filename=None):
 
@@ -54,10 +69,28 @@ def make_plot(config, params, isr_tables, cost_tables, filename=None):
             max(y_lim_cost[1], cost_tables[algo].max()),
         ]
 
-        axes[map_up[0]].plot(callback_checkpoints, table.mean(axis=0), label=algo)
-        axes[map_do[0]].plot(
-            callback_checkpoints, cost_tables[algo].mean(axis=0), label=algo
+        I_s = table[:, -1] < fail_thresh  # separation is sucessful
+        I_f = table[:, -1] >= fail_thresh  # separation fails
+
+        # ISR convergence
+        p = axes[map_up[0]].plot(
+            callback_checkpoints, np.mean(table[I_s, :], axis=0), label=algo
         )
+        c = p[0].get_color()
+        axes[map_up[0]].plot(
+            callback_checkpoints,
+            np.mean(table[I_f, :], axis=0),
+            label=algo,
+            alpha=0.6,
+            c=c,
+        )
+
+        # Cost
+        axes[map_do[0]].plot(
+            callback_checkpoints, np.mean(cost_tables[algo], axis=0), label=algo
+        )
+
+        # Histograms
         axes[map_up[i + 1]].hist(
             table[:, -1], bins=n_bins, orientation="horizontal", density=True
         )
@@ -68,7 +101,7 @@ def make_plot(config, params, isr_tables, cost_tables, filename=None):
             density=True,
         )
 
-        axes[map_up[i + 1]].set_title(algo)
+        axes[map_up[i + 1]].set_title(title_dict[algo])
         axes[map_up[i + 1]].set_xlabel("")
 
     for i in range(len(isr_tables) + 1):

@@ -10,7 +10,7 @@ import bss
 
 config = {
     "master_seed": 8856641,
-    "n_repeat": 1000,
+    "n_repeat": 50,
     "params": [
         {"n_freq": 6, "n_chan": 4},
         {"n_freq": 6, "n_chan": 6},
@@ -19,14 +19,14 @@ config = {
     "n_frames": 5000,
     "distrib": "laplace",
     "algos": {
-        "iva-ng-0.3": {"algo": "iva-ng", "kwargs": {"step_size": 0.3, "n_iter": 100}},
-        "iva-ng-0.2": {"algo": "iva-ng", "kwargs": {"step_size": 0.2, "n_iter": 100}},
-        "iva-ng-0.1": {"algo": "iva-ng", "kwargs": {"step_size": 0.1, "n_iter": 100}},
+        # "iva-ng-0.3": {"algo": "iva-ng", "kwargs": {"step_size": 0.3, "n_iter": 100}},
+        # "iva-ng-0.2": {"algo": "iva-ng", "kwargs": {"step_size": 0.2, "n_iter": 100}},
+        # "iva-ng-0.1": {"algo": "iva-ng", "kwargs": {"step_size": 0.1, "n_iter": 100}},
         "auxiva": {"algo": "auxiva", "kwargs": {"n_iter": 100}},
         "auxiva2": {"algo": "auxiva2", "kwargs": {"n_iter": 100}},
         "auxiva-iss": {"algo": "auxiva-iss", "kwargs": {"n_iter": 100}},
-        "auxiva-iss2": {"algo": "auxiva-iss2", "kwargs": {"n_iter": 100}},
-        "auxiva-ipa": {"algo": "auxiva-ipa", "kwargs": {"n_iter": 100}},
+        # "auxiva-iss2": {"algo": "auxiva-iss2", "kwargs": {"n_iter": 100}},
+        # "auxiva-ipa": {"algo": "auxiva-ipa", "kwargs": {"n_iter": 100}},
         "auxiva-ipa2": {"algo": "auxiva-ipa2", "kwargs": {"n_iter": 100}},
         "auxiva-fullhead": {
             "algo": "auxiva-fullhead",
@@ -133,8 +133,11 @@ def one_loop(args):
         isr_list = []
         cost_list = []
 
+        # init with PCA
+        Y_pca, demix_pca = bss.pca(mix.transpose([2, 0, 1]).copy(), return_filters=True)
+
         def callback(Y, loc_demix, model):
-            isr_list.append(ISR(loc_demix, mix_mat))
+            isr_list.append(ISR(loc_demix @ demix_pca, mix_mat))
 
             # cost
             cost = np.sum(np.linalg.norm(Y, axis=1))
@@ -149,7 +152,8 @@ def one_loop(args):
 
         # separate with IVA
         est, demix_mat = bss.algos[algo_name](
-            mix.transpose([2, 0, 1]).copy(),
+            # mix.transpose([2, 0, 1]).copy(),
+            Y_pca.copy(),
             return_filters=True,
             model=distrib,
             callback=callback,
