@@ -49,7 +49,16 @@ substitutions = {
         "auxiva_pca": "PCA+AuxIVA-IP",
         "auxiva_demix_steer_nopca": "AuxIVA-IPA",
         "auxiva_demix_steer_pca": "AuxIVA-IPA (PCA)",
+        "auxiva_ipa_nopca": "AuxIVA-IPA",
+        "auxiva_ipa_pca": "AuxIVA-IPA (PCA)",
+        "auxiva_ipa2_nopca": "AuxIVA-IPA2",
+        "auxiva_ipa2_pca": "AuxIVA-IPA2 (PCA)",
+        "auxiva_ipa2": "AuxIVA-IPA2 (PCA)",
         "overiva_demix_steer": "OverIVA-IPA",
+        "fastiva": "FastIVA (PCA)",
+        "fastiva_nopca": "FastIVA",
+        "iva_ng_0.3": "NG (PCA)",
+        "iva_ng_0.3_nopca": "NG",
         "pca": "PCA",
     }
 }
