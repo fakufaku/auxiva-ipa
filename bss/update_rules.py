@@ -80,12 +80,7 @@ def _ip_double(s1, s2, X, W, r_inv):
     Performs a joint update of the s1-th and s2-th demixing vectors
     usint the iterative projection 2 rules
     """
-
-    n_freq, n_chan, n_frames = X.shape
-
-    # right-hand side for computation of null space basis
-    # no_update = [i for i in range(n_src) if i != s]
-    rhs = np.eye(n_chan)[None, :, [s1, s2]]
+    n_frames = X.shape[-1]
 
     # Compute Auxiliary Variable
     # shape: (n_freq, n_chan, n_chan)
@@ -93,6 +88,17 @@ def _ip_double(s1, s2, X, W, r_inv):
         (X * r_inv[None, i, None, :]) @ tensor_H(X) / n_frames
         for i, s in enumerate([s1, s2])
     ]
+
+    _ip_double_sub(s1, s2, V, W)
+
+
+def _ip_double_sub(s1, s2, V, W):
+
+    n_freq, n_chan, _ = W.shape
+
+    # right-hand side for computation of null space basis
+    # no_update = [i for i in range(n_src) if i != s]
+    rhs = np.eye(n_chan)[None, :, [s1, s2]]
 
     # Basis for demixing vector
     H = []

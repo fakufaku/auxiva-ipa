@@ -1,6 +1,7 @@
 import datetime
 import multiprocessing
 import time
+from multiprocessing import Pool, Process, Queue
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -10,7 +11,7 @@ import bss
 
 config = {
     "master_seed": 8856641,
-    "n_repeat": 50,
+    "n_repeat": 1000,
     "params": [
         {"n_freq": 6, "n_chan": 4},
         {"n_freq": 6, "n_chan": 6},
@@ -19,16 +20,16 @@ config = {
     "n_frames": 5000,
     "distrib": "laplace",
     "algos": {
-        # "iva-ng-0.3": {"algo": "iva-ng", "kwargs": {"step_size": 0.3, "n_iter": 100}},
+        "iva-ng-0.3": {"algo": "iva-ng", "kwargs": {"step_size": 0.3, "n_iter": 100}},
         # "iva-ng-0.2": {"algo": "iva-ng", "kwargs": {"step_size": 0.2, "n_iter": 100}},
         # "iva-ng-0.1": {"algo": "iva-ng", "kwargs": {"step_size": 0.1, "n_iter": 100}},
         "auxiva": {"algo": "auxiva", "kwargs": {"n_iter": 100}},
         "auxiva2": {"algo": "auxiva2", "kwargs": {"n_iter": 100}},
         "auxiva-iss": {"algo": "auxiva-iss", "kwargs": {"n_iter": 100}},
         # "auxiva-iss2": {"algo": "auxiva-iss2", "kwargs": {"n_iter": 100}},
-        # "auxiva-ipa": {"algo": "auxiva-ipa", "kwargs": {"n_iter": 100}},
+        "auxiva-ipa": {"algo": "auxiva-ipa", "kwargs": {"n_iter": 100}},
         "auxiva-ipa2": {"algo": "auxiva-ipa2", "kwargs": {"n_iter": 100}},
-        "auxiva-fullhead": {
+        "auxiva-fullhead_1e-5": {
             "algo": "auxiva-fullhead",
             "kwargs": {"tol": 1e-5, "n_iter": 100},
         },
@@ -100,7 +101,7 @@ def ISR(W, A):
 
 def one_loop(args):
     # expand the input arguments
-    (param_index, n_freq, n_chan, n_frames, distrib, algos, seed,) = args
+    (param_index, n_freq, n_chan, n_frames, distrib, algos, seed, queue) = args
 
     # fix the random seed
     np.random.seed(seed)
@@ -145,8 +146,6 @@ def one_loop(args):
             cost -= 2 * Y.shape[0] * np.sum(logdet)
             cost_list.append(cost)
 
-            new_Y = (loc_demix @ mix).transpose([2, 0, 1])
-
         # ISR of mixture
         callback(mix.transpose([2, 0, 1]), init_W.copy(), distrib)
 
@@ -168,10 +167,12 @@ def one_loop(args):
         isr[algo] = np.array(isr_list).tolist()
         cost[algo] = np.array(cost_list).tolist()
 
+    queue.put(True)  # push something to indicate that we are done
+
     return param_index, isr, cost
 
 
-def gen_args(master_seed, n_repeat, params, n_frames, distrib, algos):
+def gen_args(master_seed, n_repeat, params, n_frames, distrib, algos, queue):
 
     np.random.seed(master_seed)
 
@@ -179,18 +180,48 @@ def gen_args(master_seed, n_repeat, params, n_frames, distrib, algos):
     for i, p in enumerate(params):
         for r in range(n_repeat):
             seed = np.random.randint(2 ** 32)
-            args.append((i, p["n_freq"], p["n_chan"], n_frames, distrib, algos, seed,))
+            args.append(
+                (i, p["n_freq"], p["n_chan"], n_frames, distrib, algos, seed, queue)
+            )
 
     return args
 
 
+def progress_tracker(n_tasks, queue):
+
+    n_digits = len(str(n_tasks))
+    fmt = "Remaining tasks: {n:" + str(n_digits) + "d} / " + str(n_tasks)
+
+    start_date = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+    print(f"Start processing at {start_date}")
+
+    def print_status():
+        print(fmt.format(n=n_tasks), end="\r")
+
+    print_status()
+
+    while n_tasks > 0:
+        _ = queue.get(block=True)
+        n_tasks -= 1
+        print_status()
+
+    end_date = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+    print(f"All done. Finished at {end_date}")
+
+
 if __name__ == "__main__":
 
-    from multiprocessing import Pool
+    # we need a queue for inter-process communication
+    m = multiprocessing.Manager()
+    the_queue = m.Queue()
 
-    args = gen_args(**config)
+    # generate all the arguments
+    args = gen_args(queue=the_queue, **config)
+    np.random.shuffle(args)
 
     # run all the simulation in parallel
+    prog_proc = Process(target=progress_tracker, args=(len(args), the_queue,))
+    prog_proc.start()
     t_start = time.perf_counter()
     pool = multiprocessing.Pool()
     results = pool.map(one_loop, args)

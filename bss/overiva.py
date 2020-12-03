@@ -341,16 +341,36 @@ def overiva(
         elif update_rule == "ip2-block":
 
             # Update source pairs with a joint IP2 update
+            r_inv = aux_variable_update(Y)
+
+            # compute all the covariance matrices
+            V = [
+                (X * r_inv[k, None, None, :]) @ tensor_H(X) / n_frames
+                for k in range(n_src)
+            ]
+
+            # enforce hermitian symmetry of covariance matrices
+            for i, vv in enumerate(V):
+                V[i] = 0.5 * (vv + tensor_H(vv))
+
             for s1, s2 in TwoStepsIterator(n_src):
 
                 if n_src < n_chan:
+                    assert "This part needs fixing"
                     # Update the background with a block IP update
                     _block_ip(list(range(n_src, n_chan)), X, W, Cx)
 
                 # Iterative Projection 2
+                _ip_double_sub(s1, s2, [V[s1], V[s2]], W)
+
+                """
+                # implementation for update of aux. var at each iteration
                 r_inv = aux_variable_update(Y[:, [s1, s2], :])
                 _ip_double(s1, s2, X, W, r_inv)
                 Y[:, [s1, s2], :] = W[:, [s1, s2], :] @ X
+                """
+
+            demix(Y, X, W[:, :n_src, :])
 
         elif update_rule == "ipa":
 
@@ -425,7 +445,7 @@ def overiva(
             # now solve head
             tol = 1e-1 if "tol" not in kwargs else kwargs["tol"]
             W[:], info = head_solver(
-                V.swapaxes(0, 1), W=W, method=HEADUpdate.IPA, tol=tol, info=True
+                V.swapaxes(0, 1), W=W, method=HEADUpdate.IPA_NCG, tol=tol, info=True
             )
 
             demix(Y, X, W[:, :n_src, :])

@@ -9,9 +9,9 @@ from scipy.linalg import block_diag
 from scipy.sparse.linalg import (LinearOperator, bicg, bicgstab, cgs, gmres,
                                  lgmres)
 
+from .random import crandn, rand_psd
 from .update_rules import _ipa
 from .utils import iscomplex, isreal, tensor_H
-from .random import crandn, rand_psd
 
 
 class HEADUpdate(Enum):
@@ -408,8 +408,6 @@ def head_solver(
                 return W, info_init
             else:
                 return W
-
-        print("Going for NCG!")
 
         # update the parameters
         method = HEADUpdate.NCG
