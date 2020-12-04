@@ -57,6 +57,9 @@ if __name__ == "__main__":
         help="Display the plots at the end of data analysis",
     )
     parser.add_argument(
+        "--pca", action="store_true", help="Plot results for PCA initialization",
+    )
+    parser.add_argument(
         "dirs",
         type=str,
         nargs="+",
@@ -97,11 +100,19 @@ if __name__ == "__main__":
         .reset_index()
     )
 
+    if cli_args.pca:
+        pca_str = " (PCA)"
+    else:
+        pca_str = ""
+
     all_algos = [
-        "AuxIVA-IP",
-        "AuxIVA-ISS",
-        "AuxIVA-IP2",
-        "AuxIVA-IPA",
+        "AuxIVA-IP" + pca_str,
+        "AuxIVA-ISS" + pca_str,
+        "AuxIVA-IP2" + pca_str,
+        "AuxIVA-IPA" + pca_str,
+        "AuxIVA-IPA2" + pca_str,
+        "FastIVA" + pca_str,
+        "NG" + pca_str,
     ]
 
     sns.set(
@@ -259,9 +270,10 @@ if __name__ == "__main__":
 
             for ext in ["pdf", "png"]:
                 x_inc = "time" if x_axis == "Runtime [s]" else "iterations"
+                pca_fn_str = "_pca" if cli_args.pca else ""
                 fig_fn = os.path.join(
                     fig_dir,
-                    f"figure4_conv_interf{n_interferers}_{x_inc}_sinr{sinr}.{ext}",
+                    f"figure4_conv_interf{n_interferers}_{x_inc}_sinr{sinr}{pca_fn_str}.{ext}",
                 )
                 plt.savefig(fig_fn, bbox_inches="tight")
             plt.close()

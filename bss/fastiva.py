@@ -5,7 +5,8 @@ from .update_rules import (_block_ip, _ip_double, _ip_double_two_channels,
                            _ip_single, _ipa, _iss_single,
                            _joint_demix_background,
                            _parametric_background_update)
-from .utils import TwoStepsIterator, demix, tensor_H, cost_iva
+from .utils import TwoStepsIterator, cost_iva, demix, tensor_H
+
 _eps = 1e-15
 
 def score_laplace(Y):
@@ -149,7 +150,9 @@ def fastiva(
         W[:] = a[..., None, :] * W + b
 
         # symmetric decorrelation
-        L = np.linalg.cholesky(np.linalg.inv(tensor_H(W) @ W))
+        WHW = tensor_H(W) @ W
+        WHW = 0.5 * (WHW + tensor_H(WHW))
+        L = np.linalg.cholesky(np.linalg.inv(WHW))
         np.matmul(W, L, out=W)
 
         # Update the output signal

@@ -10,6 +10,7 @@ import bss
 figure_dir = Path("./figures")
 
 title_dict = {
+    "iva-ng-0.5": "ng-0.5",
     "iva-ng-0.3": "ng-0.3",
     "iva-ng-0.2": "ng-0.2",
     "iva-ng-0.1": "ng-0.1",
@@ -20,6 +21,7 @@ title_dict = {
     "auxiva-ipa": "ipa",
     "auxiva-ipa2": "ipa2",
     "auxiva-fullhead": "fh",
+    "auxiva-fullhead_1e-5": "fh",
 }
 
 fail_thresh = -10.0
