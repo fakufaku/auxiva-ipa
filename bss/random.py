@@ -43,7 +43,8 @@ def rand_psd(*shape, inner=None, dtype=np.complex):
     else:
         shape = shape + (inner,)
     X = crandn(*shape, dtype=dtype)
-    return X @ tensor_H(X) / shape[-1]
+    V = X @ tensor_H(X) / shape[-1]
+    return 0.5 * (V + tensor_H(V))
 
 
 def circular_symmetric(loc=0, scale=1.0, dim=1, size=None, distrib="laplace", dtype=np.complex128):

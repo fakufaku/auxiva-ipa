@@ -72,7 +72,7 @@ def head_cost(V, W):
 
     _, logdet = np.linalg.slogdet(W)
 
-    return np.sum(quad, axis=(1, 2)) - 2 * logdet
+    return np.sum(quad, axis=(1, 2, 3)) - 2 * logdet
 
 
 def make_transpose_matrix(n, dtype=np.float64):
@@ -226,6 +226,9 @@ def solve_hessian_system(V, X, tol=1e-20, maxiter=None, use_cg=True):
         H = make_HEAD_Hessian_matrix(V)
 
         if iscomplex(V):
+            reg = 1e-10 * np.eye(H.shape[-1])[None, ...]
+            H = H + reg
+
             X_flat = X.reshape((n_freq, n_chan ** 2))
             x0 = np.concatenate((X_flat, np.conj(X_flat)), axis=1)
             sols = np.linalg.solve(H, x0)[..., : n_chan ** 2].reshape(X.shape)
@@ -244,13 +247,14 @@ def head_update_ncg(V, W, use_cg=False):
     W_bc = np.broadcast_to(W[:, None, :, :], V.shape)
     W_H_bc = np.broadcast_to(tensor_H(W)[:, None, :, :], V.shape)
     V = W_bc @ V @ W_H_bc
+    V = 0.5 * (V + tensor_H(V))
 
     # construct the deviation
     eps = eye - (V @ eye[..., None])[..., 0]
     # print("EPS:", eps)
 
     # solve the Hessian system
-    ret = solve_hessian_system(V, eps, use_cg=use_cg)
+    ret = solve_hessian_system(V, eps, use_cg=False)
     # print("CGS output:", ret)
     W[:] = (eye - ret[0]) @ W
 
@@ -327,13 +331,21 @@ def head_update_iss(V, W):
         v = v_top / v_bot
 
         # adjust the scale
-        v[:, s] -= np.sqrt(np.reciprocal(np.maximum(v_bot[:, s, :, :], 1e-15)))
+        # v[:, s] = 1.0 - np.sqrt(np.reciprocal(np.maximum(v_bot[:, s, :, :], 1e-15)))
+        v[:, s] = 0.
 
         # remove the last dim
         v = v[..., 0]
 
         # subtract from demixing matrix
         W -= v * W[:, [s], :]
+
+        # normalization
+        WW = W[:, :, None, :]
+        WVWH = WW @ V @ tensor_H(WW)
+        d = 1.0 / np.maximum(np.sqrt(WVWH), 1e-15)
+        d = d[..., 0]
+        W *= d
 
     return W
 
@@ -397,6 +409,14 @@ def head_solver(
 
     V, W, eye, n_freq, n_chan = _validate_input_parameters(V, W)
 
+    if info:
+        head_errors = - np.ones((n_freq, maxiter + 1))
+        head_errors[:, 0] = head_error(V, W)
+
+        head_costs = - np.ones((n_freq, maxiter + 1))
+        head_costs[:, 0] = head_cost(V, W)
+
+
     if method == HEADUpdate.IPA_NCG:
         W, info_init = head_solver(
             V, W=W, tol=1e-5, method=HEADUpdate.IPA, info=True, maxiter=maxiter
@@ -409,13 +429,15 @@ def head_solver(
             else:
                 return W
 
-        print("Going for NCG!")
-
         # update the parameters
         method = HEADUpdate.NCG
-        maxiter = maxiter - info_init["epochs"]
+        # maxiter = maxiter - info_init["epochs"]
+        first_epoch = info_init["epochs"]
         ipa_ncg = True
+        head_errors = info_init["head_errors"]
+        head_costs = info_init["head_costs"]
     else:
+        first_epoch = 0
         ipa_ncg = False
 
     c_prev = None
@@ -424,13 +446,17 @@ def head_solver(
     e = head_error(V, W)
     I_proc = e > tol
 
-    for epoch in range(maxiter):
+    for epoch in range(first_epoch, maxiter):
 
         W[I_proc] = f_update[method](V[I_proc], W[I_proc])
 
         # compute the error
         e = head_error(V, W)
         I_proc = e > tol
+
+        if info:
+            head_errors[:, epoch+1] = e
+            head_costs[:, epoch+1] = head_cost(V, W)
 
         if verbose:
             c_prt = np.sum(head_cost(V, W))
@@ -443,10 +469,7 @@ def head_solver(
     if info:
         c = np.sum(head_cost(V, W))
         e = np.mean(e)
-        info_content = {"cost": c, "head_error": e, "epochs": epoch + 1}
-
-        if ipa_ncg:
-            info_content["epochs"] += info_init["epochs"]
+        info_content = {"cost": c, "head_error": e, "epochs": epoch + 1, "head_errors": head_errors, "head_costs": head_costs}
 
         return W, info_content
     else:
