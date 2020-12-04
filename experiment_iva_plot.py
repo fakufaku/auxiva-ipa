@@ -1,3 +1,4 @@
+import os
 import argparse
 from pathlib import Path
 from string import ascii_letters
@@ -22,6 +23,8 @@ title_dict = {
     "auxiva-ipa2": "ipa2",
     "auxiva-fullhead": "fh",
     "auxiva-fullhead_1e-5": "fh",
+    "auxiva-fullhead_1e-10": "fh-10",
+    "fastiva": "fiva",
 }
 
 fail_thresh = -10.0
@@ -32,6 +35,7 @@ def make_plot(config, params, isr_tables, cost_tables, filename=None):
     # expand some parameters
     n_freq = params["n_freq"]
     n_chan = params["n_chan"]
+    pca = params["pca"]
 
     # construct the mosaic
     n_algos = len(config["algos"])
@@ -139,9 +143,14 @@ if __name__ == "__main__":
     isr_tables = data["isr_tables"].tolist()
     cost_tables = data["cost_tables"].tolist()
 
+    os.makedirs(figure_dir, exist_ok=True)
+
     for p, isr, cost in zip(config["params"], isr_tables, cost_tables):
         fig, axes = make_plot(config, p, isr, cost)
-        filename = figure_dir / (args.data.stem + f"_f{p['n_freq']}_c{p['n_chan']}.pdf")
+        pca_str = "_pca" if p["pca"] else ""
+        filename = figure_dir / (
+            args.data.stem + f"_f{p['n_freq']}_c{p['n_chan']}{pca_str}.pdf"
+        )
         fig.savefig(filename)
 
     plt.show()
