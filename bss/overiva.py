@@ -72,7 +72,7 @@ import numpy as np
 
 from .head import HEADUpdate, head_error, head_solver, head_update_ncg
 from .projection_back import project_back
-from .update_rules import (_block_ip, _ip_double, _ip_double_two_channels,
+from .update_rules import (_block_ip, _ip_double, _ip_double_sub, _ip_double_two_channels,
                            _ip_single, _ipa, _ipa2, _iss_single,
                            _joint_demix_background,
                            _parametric_background_update)
