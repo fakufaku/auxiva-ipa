@@ -296,21 +296,37 @@ def overiva(
 
         elif update_rule == "ip2-param":
 
-            # Update source pairs with a joint IP2 update
-            for s1, s2 in TwoStepsIterator(n_src):
-
-                if n_src < n_chan:
-                    _parametric_background_update(n_src, W, Cx)
-
-                # Iterative Projection 2
-                if n_chan == 2:
+            if n_chan == 2 and n_src == 2:
+                # we run two loops here because the algorithm is two at a time here
+                for s in range(2):
                     r_inv = aux_variable_update(Y, model)
                     _ip_double_two_channels(X, W, r_inv)
-                else:
-                    r_inv = aux_variable_update(Y[:, [s1, s2], :], model)
-                    _ip_double(s1, s2, X, W, r_inv)
+                    demix(Y, X, W[:, :n_src, :])
 
-                Y[:, [s1, s2], :] = W[:, [s1, s2], :] @ X
+            else:
+
+                r_inv = aux_variable_update(Y, model)
+
+                # compute all the covariance matrices
+                V = [
+                    (X * r_inv[k, None, None, :]) @ tensor_H(X) / n_frames
+                    for k in range(n_src)
+                ]
+
+                # enforce hermitian symmetry of covariance matrices
+                for i, vv in enumerate(V):
+                    V[i] = 0.5 * (vv + tensor_H(vv))
+
+                # Update source pairs with a joint IP2 update
+                for s1, s2 in TwoStepsIterator(n_src):
+
+                    if n_src < n_chan:
+                        _parametric_background_update(n_src, W, Cx)
+
+                    # Iterative Projection 2
+                    _ip_double_sub(s1, s2, [V[s1], V[s2]], W)
+
+                demix(Y, X, W[:, :n_src, :])
 
         elif update_rule == "demix-bg":
 
@@ -341,7 +357,7 @@ def overiva(
         elif update_rule == "ip2-block":
 
             # Update source pairs with a joint IP2 update
-            r_inv = aux_variable_update(Y)
+            r_inv = aux_variable_update(Y, model)
 
             # compute all the covariance matrices
             V = [

@@ -211,6 +211,14 @@ def progress_tracker(n_tasks, queue):
 
 if __name__ == "__main__":
 
+    parser = argparse.ArgumentParser(
+        description="Experiment of IVA with synthetic data"
+    )
+    parser.add_argument("--pca", action="store_true", help="Use PCA for initialization")
+    args = parser.parse_args()
+
+    config["pca"] = args.pca
+
     # we need a queue for inter-process communication
     m = multiprocessing.Manager()
     the_queue = m.Queue()
