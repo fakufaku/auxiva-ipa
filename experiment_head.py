@@ -1,4 +1,6 @@
 import argparse
+import datetime
+import multiprocessing
 import time
 
 import matplotlib.pyplot as plt
@@ -6,6 +8,75 @@ import numpy as np
 
 import bss
 from bss.head import HEADUpdate
+
+config = {
+    "seed": 873009,
+    "n_repeat": 1000,
+    "n_chan": [4, 6, 8],
+    "tol": -1.0,  # i.e. ignore tolerance
+    "maxiter": 1000,
+    "dtype": np.complex128,
+}
+
+methods = {
+    "IPA": HEADUpdate.IPA,
+    "IP": HEADUpdate.IP,
+    "ISS": HEADUpdate.ISS,
+    "IP2": HEADUpdate.IP2,
+    "NCG": HEADUpdate.NCG,
+    "IPA+NCG": HEADUpdate.IPA_NCG,
+}
+
+
+def progress_tracker(n_tasks, queue):
+
+    n_digits = len(str(n_tasks))
+    fmt = "Remaining tasks: {n:" + str(n_digits) + "d} / " + str(n_tasks)
+
+    start_date = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+    print(f"Start processing at {start_date}")
+
+    def print_status():
+        print(fmt.format(n=n_tasks), end="\r")
+
+    print_status()
+
+    while n_tasks > 0:
+        _ = queue.get(block=True)
+        n_tasks -= 1
+        print_status()
+
+    end_date = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+    print(f"All done. Finished at {end_date}")
+
+
+def f_loop(args):
+    import mkl
+
+    mkl.set_num_threads(1)
+
+    # expand arguments
+    V, maxiter, tol, methods, the_queue = args
+
+    infos = {}
+    runtimes = {}
+
+    v_mat = V[None, ...]
+
+    for method, key in methods.items():
+        t_start = time.perf_counter()
+        _, info = bss.head.head_solver(
+            v_mat, maxiter=maxiter, tol=tol, method=key, verbose=False, info=True
+        )
+        ellapsed = time.perf_counter() - t_start
+
+        infos[method] = info
+        runtimes[method] = ellapsed
+
+    the_queue.put(True)
+
+    return V.shape[-1], infos, runtimes
+
 
 if __name__ == "__main__":
     methods = {
@@ -15,107 +86,84 @@ if __name__ == "__main__":
         "IP2": HEADUpdate.IP2,
         "NCG": HEADUpdate.NCG,
         "IPA+NCG": HEADUpdate.IPA_NCG,
-        # "FP1": HEADUpdate.FP1,
     }
 
-    parser = argparse.ArgumentParser(description="Experiment of solving HEAD problem")
-    parser.add_argument("--seed", type=int, help="Specify the seed for the RNG")
-    parser.add_argument(
-        "--method", "-m", choices=list(methods.keys()), help="Method used to solve HEAD"
-    )
-    args = parser.parse_args()
+    np.random.seed(config["seed"])
 
-    if args.seed is not None:
-        seed = args.seed
-    else:
-        seed = np.random.randint(2 ** 32)
-    np.random.seed(seed)
-    print(f"Initializing the RNG with {seed}")
+    # we need a queue for inter-process communication
+    m = multiprocessing.Manager()
+    the_queue = m.Queue()
 
-    n_freq = 10
-    n_chan = 4
-    n_samples = 2 * n_chan
-    verbose = False
-    tol = -1.0  # i.e. ignore tolerance
-    maxiter = 1000
-    dtype = np.complex128
-    # dtype = np.float64
-
-    V = bss.random.rand_psd(n_freq, n_chan, n_chan, inner=n_samples, dtype=dtype)
-
-    # Compute the worst condition number
-    ev = np.abs(np.linalg.eigvals(V))
-    ev_max = np.max(ev, axis=(1, 2))
-    ev_min = np.min(ev, axis=(1, 2))
-    print("Worst condition number", np.max(ev_max / ev_min))
-
-    infos = {}
-    runtimes = {}
-
-    for method, key in methods.items():
-
-        runtimes[method] = 0.0
-        for f in range(n_freq):
-
-            t_start = time.perf_counter()
-
-            W, info = bss.head.head_solver(
-                V[[f]], maxiter=maxiter, tol=tol, method=key, verbose=verbose, info=True
+    # construct the list of parallel arguments
+    parallel_args = []
+    for n_chan in config["n_chan"]:
+        n_samples = n_chan
+        V = bss.random.rand_psd(
+            config["n_repeat"], n_chan, n_chan, inner=n_samples, dtype=config["dtype"]
+        )
+        for v_mat in V:
+            parallel_args.append(
+                (v_mat, config["maxiter"], config["tol"], methods, the_queue)
             )
+    np.random.shuffle(parallel_args)
 
-            ellapsed = time.perf_counter() - t_start
+    # run all the simulation in parallel
+    prog_proc = multiprocessing.Process(
+        target=progress_tracker, args=(len(parallel_args), the_queue,)
+    )
+    prog_proc.start()
+    t_start = time.perf_counter()
+    pool = multiprocessing.Pool()
+    results = pool.map(f_loop, parallel_args)
+    pool.close()
+    t_end = time.perf_counter()
 
-            if method not in infos:
-                infos[method] = {
-                    "head_errors": [info["head_errors"]],
-                    "head_costs": [info["head_costs"]],
+    infos = dict(zip(config["n_chan"], [{} for c in config["n_chan"]]))
+    runtimes = dict(zip(config["n_chan"], [{} for c in config["n_chan"]]))
+
+    # Post process the results
+    for (n_chan, res_info, res_rt) in results:
+
+        for method in methods:
+
+            if method not in infos[n_chan]:
+                infos[n_chan][method] = {
+                    "head_errors": [res_info[method]["head_errors"]],
+                    "head_costs": [res_info[method]["head_costs"]],
                 }
             else:
-                infos[method]["head_costs"].append(info["head_costs"])
-                infos[method]["head_errors"].append(info["head_errors"])
+                infos[n_chan][method]["head_costs"].append(
+                    res_info[method]["head_costs"]
+                )
+                infos[n_chan][method]["head_errors"].append(
+                    res_info[method]["head_errors"]
+                )
 
-            runtimes[method] += ellapsed
+            if method not in runtimes[n_chan]:
+                runtimes[n_chan][method] = res_rt[method]
+            else:
+                runtimes[n_chan][method] += res_rt[method]
 
-        runtimes[method] /= n_freq
-        infos[method]["head_costs"] = np.concatenate(
-            infos[method]["head_costs"], axis=0
-        )
-        infos[method]["head_errors"] = np.concatenate(
-            infos[method]["head_errors"], axis=0
-        )
+    for n_chan in config["n_chan"]:
+        print(f"{n_chan} channels")
+        for method in methods:
 
-        print(f"=== {method:7s} runtime={runtimes[method]:.3f} ===")
+            runtimes[n_chan][method] /= config["n_repeat"]
+            infos[n_chan][method]["head_costs"] = np.concatenate(
+                infos[n_chan][method]["head_costs"], axis=0
+            )
+            infos[n_chan][method]["head_errors"] = np.concatenate(
+                infos[n_chan][method]["head_errors"], axis=0
+            )
 
-    # make the figure
-    min_cost = np.inf
-    for method in methods:
-        loc_min = infos[method]["head_costs"].min()
-        if loc_min < min_cost:
-            min_cost = loc_min
+            print(f"=== {method:7s} runtime={runtimes[n_chan][method]:.3f} ===")
 
-    fig, (ax1, ax2, ax3) = plt.subplots(1, 3)
-    ax3_ylim = [0, 1]
-    for method, key in methods.items():
-        ax1.semilogy(np.mean(infos[method]["head_errors"], axis=0), label=method)
-        ax1.set_title("Mean HEAD error")
+    # get the date
+    date = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+    filename = f"data/{date}_experiment_head_results.npz"
 
-        ax2.semilogy(np.median(infos[method]["head_errors"], axis=0), label=method)
-        ax2.set_title("Median HEAD error")
+    # save to compressed numpy file
+    np.savez(filename, config=config, methods=methods, infos=infos, runtimes=runtimes)
 
-        # cost
-        cost_mean = np.mean(infos[method]["head_costs"] - min_cost, axis=0)
-        if method != "NCG" and method != "IPA+NCG":
-            ax3_ylim[0] = np.minimum(cost_mean.min(), ax3_ylim[0])
-            ax3_ylim[1] = np.maximum(cost_mean.max(), ax3_ylim[0])
-
-        ax3.plot(cost_mean ** (0.1), label=method)
-        ax3.set_title("Mean HEAD cost")
-
-    # ax3_ylim[0] = ax3_ylim[0] - 0.01 * np.diff(ax3_ylim)[0]
-    ax3_ylim = np.array(ax3_ylim) ** (0.1)
-
-    ax3.set_ylim(ax3_ylim)
-    ax1.legend()
-    ax2.legend()
-    fig.tight_layout()
-    plt.show()
+    print(f"Total time spent {t_end - t_start:.3f} s")
+    print(f"Results saved to {filename}")
