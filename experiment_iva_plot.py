@@ -64,27 +64,30 @@ def make_plot(config, params, isr_tables, cost_tables, filename=None):
         else:
             callback_checkpoints = np.arange(0, n_iter + 1)
 
-        # isr
-        y_lim_isr = [
-            min(y_lim_isr[0], table.min()),
-            max(y_lim_isr[1], table.max()),
-        ]
-        # cost
-        y_lim_cost = [
-            min(y_lim_cost[0], cost_tables[algo].min()),
-            max(y_lim_cost[1], cost_tables[algo].max()),
-        ]
+        if not algo.startswith("fullhead"):
+            # isr
+            y_lim_isr = [
+                min(y_lim_isr[0], table.min()),
+                max(y_lim_isr[1], table.max()),
+            ]
+            # cost
+            y_lim_cost = [
+                min(y_lim_cost[0], cost_tables[algo].min()),
+                max(y_lim_cost[1], np.percentile(cost_tables[algo], 0.9)),
+            ]
 
         I_s = table[:, -1] < fail_thresh  # separation is sucessful
         I_f = table[:, -1] >= fail_thresh  # separation fails
 
         # ISR convergence
-        p = axes[map_up[0]].plot(
-            callback_checkpoints, np.mean(table[I_s, :], axis=0), label=algo
+        p = axes[map_up[0]].semilogx(
+            np.array(callback_checkpoints) + 1,
+            np.mean(table[I_s, :], axis=0),
+            label=algo,
         )
         c = p[0].get_color()
         axes[map_up[0]].plot(
-            callback_checkpoints,
+            np.array(callback_checkpoints) + 1,
             np.mean(table[I_f, :], axis=0),
             label=algo,
             alpha=0.6,
@@ -92,8 +95,10 @@ def make_plot(config, params, isr_tables, cost_tables, filename=None):
         )
 
         # Cost
-        axes[map_do[0]].plot(
-            callback_checkpoints, np.mean(cost_tables[algo], axis=0), label=algo
+        axes[map_do[0]].semilogx(
+            np.array(callback_checkpoints) + 1,
+            np.mean(cost_tables[algo], axis=0),
+            label=algo,
         )
 
         # Histograms
