@@ -5,29 +5,71 @@ from string import ascii_letters
 
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
+import seaborn as sns
 
 import bss
 
+### CONFIG ###
 figure_dir = Path("./figures")
 
 title_dict = {
     "iva-ng-0.5": "ng-0.5",
-    "iva-ng-0.3": "ng-0.3",
+    "iva-ng-0.3": "NG",
     "iva-ng-0.2": "ng-0.2",
     "iva-ng-0.1": "ng-0.1",
-    "auxiva": "ip",
-    "auxiva2": "ip2",
-    "auxiva-iss": "iss",
-    "auxiva-iss2": "iss2",
-    "auxiva-ipa": "ipa",
-    "auxiva-ipa2": "ipa2",
-    "auxiva-fullhead": "fh",
-    "auxiva-fullhead_1e-5": "fh",
-    "auxiva-fullhead_1e-10": "fh-10",
-    "fastiva": "fiva",
+    "auxiva": "IP",
+    "auxiva2": "IP2",
+    "auxiva-iss": "ISS",
+    "auxiva-iss2": "ISS2",
+    "auxiva-ipa": "IPA",
+    "auxiva-ipa2": "IPA2",
+    "auxiva-fullhead": "FH",
+    "auxiva-fullhead_1e-5": "SeDJoCo",
+    "auxiva-fullhead_1e-10": "SeDJoCo",
+    "fastiva": "FastIVA",
 }
 
-fail_thresh = -10.0
+include_algos = [
+    "iva-ng-0.3",
+    "fastiva",
+    "auxiva",
+    "auxiva-iss",
+    "auxiva2",
+    "auxiva-ipa",
+    "auxiva-fullhead_1e-5",
+]
+
+include_algos_cost = [
+    "auxiva",
+    "auxiva-iss",
+    "auxiva2",
+    "auxiva-ipa",
+    "auxiva-fullhead_1e-5",
+]
+
+
+fail_thresh = -30.0
+
+# number of bins for histogram
+n_bins = 30
+
+# figure size
+cm2in = 0.39
+fig_width = 17.78  # cm (7 inch)
+fig_height = 10  # cm
+leg_space = 2.2  # cm
+figsize = (fig_width * cm2in, fig_height * cm2in)
+
+# criteria for convergence of cost function
+cost_eps_convergence = 1e-2
+figsize_cost = (fig_width * cm2in, 4 * cm2in)
+### END CONFIG ###
+
+
+def seaborn_config(n_colors):
+    sns.set_theme(context="paper", style="white", font="sans-serif", font_scale=1)
+    sns.set_palette("viridis", n_colors=7)
 
 
 def make_plot(config, params, isr_tables, cost_tables, filename=None):
@@ -129,10 +171,404 @@ def make_plot(config, params, isr_tables, cost_tables, filename=None):
     axes[map_up[0]].legend()
     axes[map_do[0]].legend()
     axes[map_do[0]].set_xlabel("Iteration")
-    axes[map_up[0]].set_ylabel("ISR")
+    axes[map_up[0]].set_ylabel("ISR [dB]")
     axes[map_do[0]].set_ylabel("Cost")
 
     return fig, axes
+
+
+def make_plot_isr(config, arg_isr_tables, arg_cost_tables, with_pca=True):
+
+    # pick only the desired params and
+    params = []
+    isr_tables = []
+    cost_tables = []
+    for p, isr, cost in zip(config["params"], arg_isr_tables, arg_cost_tables):
+        if p["pca"] != with_pca:
+            continue
+        params.append(p)
+        isr_tables.append(isr)
+        cost_tables.append(cost)
+
+    # pick the algorithms to include
+    for sub_dict in isr_tables:
+        n_algos = 0
+        rm_list = []
+        for algo in sub_dict:
+            if algo not in include_algos:
+                rm_list.append(algo)
+            else:
+                n_algos += 1
+        for a in rm_list:
+            sub_dict.pop(a)
+
+    # construct the mosaic
+    # n_algos = len(include_algos)
+    n_rows = len(params)
+    mosaic_array = []
+    mosaic_len_left = n_algos // 2
+    mosaic_row_len = mosaic_len_left + n_algos
+    mos_map = []
+    assert n_rows * (n_algos + 1) <= len(ascii_letters)
+    for b in range(n_rows):
+        mosaic_array.append([ascii_letters[b] * mosaic_len_left])
+        mos_map.append([mosaic_array[b][0][0]])
+        for i in range(1, n_algos + 1):
+            letters = ascii_letters[n_rows * i + b]
+            mosaic_array[b].append(letters)
+            mos_map[b].append(letters)
+    mosaic = "\n".join(["".join(a) for a in mosaic_array])
+
+    # prepare the style
+    seaborn_config(n_algos)
+
+    # create the figure
+    fig, axes = plt.subplot_mosaic(mosaic, figsize=figsize)
+
+    # container for some info we will fill as we go
+    leg_handles = {}
+    y_lim_isr = [0, 1]
+    x_lim_hist_isr = [0, 0]
+    percent_converge = []
+
+    for ip, pmt in enumerate(params):
+        n_freq = pmt["n_freq"]
+        n_chan = pmt["n_chan"]
+        percent_converge.append({})
+
+        for i, algo in enumerate(include_algos):
+            if algo not in isr_tables[ip]:
+                continue
+            table = isr_tables[ip][algo]
+
+            n_iter = config["algos"][algo]["kwargs"]["n_iter"]
+            algo_name = config["algos"][algo]["algo"]
+
+            if bss.is_dual_update[algo_name]:
+                callback_checkpoints = np.arange(0, n_iter + 1, 2)
+            else:
+                callback_checkpoints = np.arange(0, n_iter + 1)
+
+            if not algo.startswith("fullhead"):
+                # isr
+                y_lim_isr = [
+                    min(y_lim_isr[0], table.min()),
+                    max(y_lim_isr[1], table.max()),
+                ]
+
+            I_s = table[:, -1] < fail_thresh  # separation is sucessful
+            I_f = table[:, -1] >= fail_thresh  # separation fails
+
+            # ISR convergence
+            p = axes[mos_map[ip][0]].semilogx(
+                np.array(callback_checkpoints),
+                np.mean(table[I_s, :], axis=0),
+                label=title_dict[algo],
+            )
+
+            # keep the percentage and mean of success/failure
+            percent_converge[ip][algo] = (
+                np.sum(I_s) / len(I_s),
+                np.mean(table[I_s, -1]),
+                np.mean(table[I_f, -1]),
+            )
+
+            # get color of main line
+            c = p[0].get_color()
+
+            # now draw the divergent line
+            axes[mos_map[ip][0]].plot(
+                np.array(callback_checkpoints),
+                np.mean(table[I_f, :], axis=0),
+                alpha=0.6,
+                c=c,
+                linestyle="--",
+            )
+
+            # Histograms
+            bin_heights, bins, patches = axes[mos_map[ip][i + 1]].hist(
+                table[:, -1],
+                bins=n_bins,
+                orientation="horizontal",
+                density=True,
+                color=c,
+                linewidth=0.0,
+            )
+
+            # keep track of required length of x-axis for the histograms
+            x_lim_hist_isr[1] = max(x_lim_hist_isr[1], bin_heights.max())
+
+        # collect the labels
+        handles, labels = axes[mos_map[ip][0]].get_legend_handles_labels()
+        for lbl, hand in zip(labels, handles):
+            if lbl not in leg_handles:
+                leg_handles[lbl] = hand
+
+    sns.despine(fig=fig, offset=1.0)
+
+    # arrange the parameters
+    for ip, pmt in enumerate(params):
+        n_freq = pmt["n_freq"]
+        n_chan = pmt["n_chan"]
+
+        # set the x/y-axis limit for all histograms
+        if ip == n_rows - 1:
+            axes[mos_map[ip][0]].set_xticks([1, 10, 100])
+            axes[mos_map[ip][0]].set_xlim([0.9, 100])
+        else:
+            axes[mos_map[ip][0]].set_xticks([])
+            axes[mos_map[ip][0]].set_xlim([0.9, 100])
+
+        axes[mos_map[ip][0]].set_ylim(y_lim_isr)
+        for i, algo in enumerate(include_algos):
+            if algo not in isr_tables[ip]:
+                continue
+            table = isr_tables[ip][algo]
+            axes[mos_map[ip][i + 1]].set_ylim(y_lim_isr)
+            axes[mos_map[ip][i + 1]].set_yticks([])
+            axes[mos_map[ip][i + 1]].set_xlim(x_lim_hist_isr)
+
+            if ip == n_rows - 1:
+                axes[mos_map[ip][i + 1]].set_xticks([np.mean(x_lim_hist_isr)])
+                axes[mos_map[ip][i + 1]].set_xticklabels(
+                    [title_dict[algo]], rotation=75
+                )
+            else:
+                axes[mos_map[ip][i + 1]].set_xticks([])
+
+            # write down the percentage of convergent point onto the histogram directly
+            p, y_s, y_f = percent_converge[ip][algo]
+            # success
+            pts = [0.25 * x_lim_hist_isr[1], y_s + 4.0]
+            axes[mos_map[ip][i + 1]].annotate(
+                f"{100 * p:0.1f}%", pts, fontsize="x-small"
+            )
+            # failure
+            pts = [0.25 * x_lim_hist_isr[1], y_f + 4.0]
+            axes[mos_map[ip][i + 1]].annotate(
+                f"{100 * (1 - p):0.1f}%", pts, fontsize="x-small"
+            )
+
+        axes[mos_map[ip][0]].set_title(f"{n_freq} mixtures, {n_chan} channels")
+        axes[mos_map[ip][0]].set_ylabel("ISR [dB]")
+
+    axes[mos_map[0][0]].annotate("SeDJoCo/IPA overlap", [1, -52], fontsize="xx-small")
+
+    fig.tight_layout(pad=0.1, w_pad=0.4, h_pad=0.2)
+    figleg = fig.legend(
+        leg_handles.values(),
+        leg_handles.keys(),
+        title="Algorithm",
+        title_fontsize="x-small",
+        fontsize="x-small",
+        # bbox_to_anchor=[1 - leg_space / fig_width, 0.5],
+        bbox_to_anchor=[1, 0.5],
+        loc="center right",
+    )
+
+    fig.subplots_adjust(right=1 - leg_space / (fig_width))
+
+    axes[mos_map[-1][0]].set_xlabel("Iteration")
+
+    return fig, axes
+
+
+def make_figure_cost(config, arg_isr_tables, arg_cost_tables, with_pca=True):
+
+    # pick only the desired params and
+    params = []
+    isr_tables = []
+    cost_tables = []
+    for p, isr, cost in zip(config["params"], arg_isr_tables, arg_cost_tables):
+        if p["pca"] != with_pca:
+            continue
+        params.append(p)
+        isr_tables.append(isr)
+        cost_tables.append(cost)
+
+    # pick the algorithms to include
+    for sub_dict in isr_tables:
+        n_algos = 0
+        rm_list = []
+        for algo in sub_dict:
+            if algo not in include_algos_cost:
+                rm_list.append(algo)
+            else:
+                n_algos += 1
+        for a in rm_list:
+            sub_dict.pop(a)
+
+    results = []
+
+    # prepare the style
+    seaborn_config(n_algos)
+
+    # create the figure
+    fig, axes = plt.subplots(1, len(params), figsize=figsize_cost)
+
+    # container for some info we will fill as we go
+    leg_handles = {}
+    y_lim = [np.inf, -np.inf]
+
+    ticks = [
+        [-200000, -100000, 0.0],
+        [-300000, -150000, 0.0],
+        [-400000, -200000, 0.0],
+    ]
+    ticklabels = [
+        ["$-2 x 10^5$", "$-10^5$", "$0$",],
+        ["$-3 x 10^5$", "$-1.5 x 10^5$", "$0$",],
+        ["$-4 x 10^5$", "$-2 x 10^5$", "$0$",],
+    ]
+
+    for ip, pmt in enumerate(params):
+        n_freq = pmt["n_freq"]
+        n_chan = pmt["n_chan"]
+
+        for i, algo in enumerate(include_algos_cost):
+            if algo not in isr_tables[ip]:
+                continue
+            table = cost_tables[ip][algo]
+
+            agg_cost = np.median(table, axis=0)
+
+            axes[ip].semilogx(
+                np.arange(1, len(agg_cost) + 1), agg_cost, label=title_dict[algo]
+            )
+
+            y_lim = [
+                min(y_lim[0], agg_cost.min()),
+                max(y_lim[1], agg_cost.max()),
+            ]
+
+        # collect the labels
+        handles, labels = axes[ip].get_legend_handles_labels()
+        for lbl, hand in zip(labels, handles):
+            if lbl not in leg_handles:
+                leg_handles[lbl] = hand
+
+        axes[ip].set_xlabel("Iteration")
+        axes[ip].set_xticks([1, 10, 100])
+        axes[ip].set_title(f"{n_freq} mixtures, {n_chan} channels")
+
+        if ip < len(ticks):
+            axes[ip].set_yticks(ticks[ip])
+        if ip < len(ticklabels):
+            axes[ip].set_yticklabels(ticklabels[ip])
+
+    sns.despine(fig=fig, offset=0.1)
+
+    """
+    y_lim[1] = -100000
+    y_lim = np.array(y_lim)
+    y_lim = 1.05 * (y_lim - np.mean(y_lim)) + np.mean(y_lim)
+    for ip, pmt in enumerate(params):
+        axes[ip].set_ylim(y_lim)
+    """
+
+    fig.tight_layout(pad=0.1, w_pad=0.4, h_pad=1.0)
+    figleg = fig.legend(
+        leg_handles.values(),
+        leg_handles.keys(),
+        title="Algorithm",
+        title_fontsize="x-small",
+        fontsize="x-small",
+        # bbox_to_anchor=[1 - leg_space / fig_width, 0.5],
+        bbox_to_anchor=[1, 0.5],
+        loc="center right",
+    )
+    fig.subplots_adjust(right=1 - leg_space / (fig_width))
+
+    return fig, axes
+
+
+def make_table_cost(config, arg_isr_tables, arg_cost_tables, with_pca=True):
+
+    # pick only the desired params and
+    params = []
+    isr_tables = []
+    cost_tables = []
+    for p, isr, cost in zip(config["params"], arg_isr_tables, arg_cost_tables):
+        if p["pca"] != with_pca:
+            continue
+        params.append(p)
+        isr_tables.append(isr)
+        cost_tables.append(cost)
+
+    # pick the algorithms to include
+    for sub_dict in isr_tables:
+        n_algos = 0
+        rm_list = []
+        for algo in sub_dict:
+            if algo not in include_algos:
+                rm_list.append(algo)
+            else:
+                n_algos += 1
+        for a in rm_list:
+            sub_dict.pop(a)
+
+    results = []
+
+    for ip, pmt in enumerate(params):
+        n_freq = pmt["n_freq"]
+        n_chan = pmt["n_chan"]
+
+        for i, algo in enumerate(include_algos):
+            if algo not in isr_tables[ip]:
+                continue
+            table = cost_tables[ip][algo]
+
+            dtable = -np.diff(table, axis=1)
+            dtable /= np.abs(table[:, :1])
+
+            converge_epoch = []
+
+            for r in range(dtable.shape[0]):
+                S = np.where((dtable[r] >= 0) & (dtable[r] < cost_eps_convergence))[0]
+                if len(S) == 0:
+                    converge_epoch.append(len(dtable[r]))
+                else:
+                    converge_epoch.append(S[0] + 1)
+
+            mean_objective = np.mean(table[:, -1])
+
+            results.append(
+                {
+                    "$F$": n_freq,
+                    "$M$": n_chan,
+                    "algo": title_dict[algo],
+                    "mean_epoch": np.mean(converge_epoch),
+                    "median_epoch": int(np.median(converge_epoch)),
+                    "max_epoch": np.max(converge_epoch),
+                    "obj_val": mean_objective,
+                }
+            )
+
+    algo_order = [title_dict[algo] for algo in include_algos]
+
+    df = pd.DataFrame(results)
+
+    ret = {}
+    for metric in ["mean_epoch", "median_epoch", "max_epoch", "obj_val"]:
+        # create the pivot table
+        df_loc = df[["$F$", "$M$", "algo", metric]].pivot_table(
+            index=["$F$", "$M$"], columns=["algo"],  # values=["obj_val"]
+        )
+
+        # reorder the columns
+        df_loc = df_loc.reindex(columns=algo_order, level=1)
+        ret[metric] = df_loc
+
+        # print the stuff
+        print("---===---")
+        print(metric)
+        print()
+        print(df_loc)
+        print()
+        print(df_loc.to_latex(float_format="%.1f"))
+        print()
+
+    return ret
 
 
 if __name__ == "__main__":
@@ -150,6 +586,25 @@ if __name__ == "__main__":
 
     os.makedirs(figure_dir, exist_ok=True)
 
+    for pca in [True]:
+        pca_str = "_pca" if pca else ""
+
+        # create the ISR plots
+        fig, axes = make_plot_isr(config, isr_tables, cost_tables, with_pca=pca)
+        filename = figure_dir / (args.data.stem + f"_isr{pca_str}.pdf")
+        fig.savefig(filename)
+
+        # cost figure
+        fig, axes = make_figure_cost(config, isr_tables, cost_tables, with_pca=pca)
+        filename = figure_dir / (args.data.stem + f"_cost{pca_str}.pdf")
+        fig.savefig(filename)
+
+        # compute the values for the cost function
+        tables = make_table_cost(config, isr_tables, cost_tables, with_pca=pca)
+
+    plt.show()
+
+    """
     for p, isr, cost in zip(config["params"], isr_tables, cost_tables):
         fig, axes = make_plot(config, p, isr, cost)
         pca_str = "_pca" if p["pca"] else ""
@@ -157,5 +612,6 @@ if __name__ == "__main__":
             args.data.stem + f"_f{p['n_freq']}_c{p['n_chan']}{pca_str}.pdf"
         )
         fig.savefig(filename)
+    """
 
     plt.show()
