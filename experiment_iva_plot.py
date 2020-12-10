@@ -1,4 +1,5 @@
 import argparse
+import os
 from pathlib import Path
 from string import ascii_letters
 
@@ -22,6 +23,8 @@ title_dict = {
     "auxiva-ipa2": "ipa2",
     "auxiva-fullhead": "fh",
     "auxiva-fullhead_1e-5": "fh",
+    "auxiva-fullhead_1e-10": "fh-10",
+    "fastiva": "fiva",
 }
 
 fail_thresh = -10.0
@@ -32,6 +35,7 @@ def make_plot(config, params, isr_tables, cost_tables, filename=None):
     # expand some parameters
     n_freq = params["n_freq"]
     n_chan = params["n_chan"]
+    pca = params["pca"]
 
     # construct the mosaic
     n_algos = len(config["algos"])
@@ -60,27 +64,30 @@ def make_plot(config, params, isr_tables, cost_tables, filename=None):
         else:
             callback_checkpoints = np.arange(0, n_iter + 1)
 
-        # isr
-        y_lim_isr = [
-            min(y_lim_isr[0], table.min()),
-            max(y_lim_isr[1], table.max()),
-        ]
-        # cost
-        y_lim_cost = [
-            min(y_lim_cost[0], cost_tables[algo].min()),
-            max(y_lim_cost[1], cost_tables[algo].max()),
-        ]
+        if not algo.startswith("fullhead"):
+            # isr
+            y_lim_isr = [
+                min(y_lim_isr[0], table.min()),
+                max(y_lim_isr[1], table.max()),
+            ]
+            # cost
+            y_lim_cost = [
+                min(y_lim_cost[0], cost_tables[algo].min()),
+                max(y_lim_cost[1], np.percentile(cost_tables[algo], 0.9)),
+            ]
 
         I_s = table[:, -1] < fail_thresh  # separation is sucessful
         I_f = table[:, -1] >= fail_thresh  # separation fails
 
         # ISR convergence
-        p = axes[map_up[0]].plot(
-            callback_checkpoints, np.mean(table[I_s, :], axis=0), label=algo
+        p = axes[map_up[0]].semilogx(
+            np.array(callback_checkpoints) + 1,
+            np.mean(table[I_s, :], axis=0),
+            label=algo,
         )
         c = p[0].get_color()
         axes[map_up[0]].plot(
-            callback_checkpoints,
+            np.array(callback_checkpoints) + 1,
             np.mean(table[I_f, :], axis=0),
             label=algo,
             alpha=0.6,
@@ -88,8 +95,10 @@ def make_plot(config, params, isr_tables, cost_tables, filename=None):
         )
 
         # Cost
-        axes[map_do[0]].plot(
-            callback_checkpoints, np.mean(cost_tables[algo], axis=0), label=algo
+        axes[map_do[0]].semilogx(
+            np.array(callback_checkpoints) + 1,
+            np.mean(cost_tables[algo], axis=0),
+            label=algo,
         )
 
         # Histograms
@@ -139,9 +148,14 @@ if __name__ == "__main__":
     isr_tables = data["isr_tables"].tolist()
     cost_tables = data["cost_tables"].tolist()
 
+    os.makedirs(figure_dir, exist_ok=True)
+
     for p, isr, cost in zip(config["params"], isr_tables, cost_tables):
         fig, axes = make_plot(config, p, isr, cost)
-        filename = figure_dir / (args.data.stem + f"_f{p['n_freq']}_c{p['n_chan']}.pdf")
+        pca_str = "_pca" if p["pca"] else ""
+        filename = figure_dir / (
+            args.data.stem + f"_f{p['n_freq']}_c{p['n_chan']}{pca_str}.pdf"
+        )
         fig.savefig(filename)
 
     plt.show()

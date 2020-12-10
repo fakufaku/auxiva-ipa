@@ -80,6 +80,11 @@ def separate(
 
     n_frames, n_freq, n_chan = X.shape
 
+    # for fastiva, we want to avoid doing PCA first because it is already
+    # done in the algorithm itself. Doing it twice messes things up
+    if algorithm == "fastiva" and init == "pca":
+        init = None
+
     if init is not None:
         X0, W0 = algos_init[init](X, return_filters=True, **init_kwargs)
     else:

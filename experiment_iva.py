@@ -13,25 +13,30 @@ config = {
     "master_seed": 8856641,
     "n_repeat": 1000,
     "params": [
-        {"n_freq": 6, "n_chan": 4},
-        {"n_freq": 6, "n_chan": 6},
-        {"n_freq": 6, "n_chan": 8},
+        {"n_freq": 6, "n_chan": 4, "pca": True},
+        {"n_freq": 6, "n_chan": 6, "pca": True},
+        {"n_freq": 6, "n_chan": 8, "pca": True},
+        {"n_freq": 6, "n_chan": 4, "pca": False},
+        {"n_freq": 6, "n_chan": 6, "pca": False},
+        {"n_freq": 6, "n_chan": 8, "pca": False},
     ],
     "n_frames": 5000,
     "distrib": "laplace",
     "algos": {
         "iva-ng-0.3": {"algo": "iva-ng", "kwargs": {"step_size": 0.3, "n_iter": 100}},
-        # "iva-ng-0.2": {"algo": "iva-ng", "kwargs": {"step_size": 0.2, "n_iter": 100}},
-        # "iva-ng-0.1": {"algo": "iva-ng", "kwargs": {"step_size": 0.1, "n_iter": 100}},
+        "fastiva": {"algo": "fastiva", "kwargs": {"n_iter": 100}},
         "auxiva": {"algo": "auxiva", "kwargs": {"n_iter": 100}},
         "auxiva2": {"algo": "auxiva2", "kwargs": {"n_iter": 100}},
         "auxiva-iss": {"algo": "auxiva-iss", "kwargs": {"n_iter": 100}},
-        # "auxiva-iss2": {"algo": "auxiva-iss2", "kwargs": {"n_iter": 100}},
         "auxiva-ipa": {"algo": "auxiva-ipa", "kwargs": {"n_iter": 100}},
         "auxiva-ipa2": {"algo": "auxiva-ipa2", "kwargs": {"n_iter": 100}},
         "auxiva-fullhead_1e-5": {
             "algo": "auxiva-fullhead",
             "kwargs": {"tol": 1e-5, "n_iter": 100},
+        },
+        "auxiva-fullhead_1e-10": {
+            "algo": "auxiva-fullhead",
+            "kwargs": {"tol": 1e-10, "n_iter": 100},
         },
     },
 }
@@ -101,7 +106,7 @@ def ISR(W, A):
 
 def one_loop(args):
     # expand the input arguments
-    (param_index, n_freq, n_chan, n_frames, distrib, algos, seed, queue) = args
+    (param_index, n_freq, n_chan, use_pca, n_frames, distrib, algos, seed, queue) = args
 
     # fix the random seed
     np.random.seed(seed)
@@ -111,15 +116,26 @@ def one_loop(args):
 
     mkl.set_num_threads(1)
 
+    # the identity matrix repeated for all frequencies
+    eye = np.array([np.eye(n_chan) for f in range(n_freq)])
+
     mix, ref, mix_mat = bss.random.rand_mixture(
         n_freq, n_chan, n_frames, distrib=distrib, dtype=np.complex128
     )
 
+    if use_pca:
+        # init with PCA
+        Y_init, demix_init = bss.pca(
+            mix.transpose([2, 0, 1]).copy(), return_filters=True
+        )
+    else:
+        # init with identity
+        Y_init = mix.transpose([2, 0, 1]).copy()
+        demix_init = np.zeros((n_freq, n_chan, n_chan), dtype=mix.dtype)
+        demix_init[:] = eye
+
     isr = {}
     cost = {}
-
-    # used to compute the input ISR
-    init_W = np.array([np.eye(n_chan) for f in range(n_freq)])
 
     for algo, pmt in algos.items():
 
@@ -134,11 +150,8 @@ def one_loop(args):
         isr_list = []
         cost_list = []
 
-        # init with PCA
-        Y_pca, demix_pca = bss.pca(mix.transpose([2, 0, 1]).copy(), return_filters=True)
-
         def callback(Y, loc_demix, model):
-            isr_list.append(ISR(loc_demix @ demix_pca, mix_mat))
+            isr_list.append(ISR(loc_demix @ demix_init, mix_mat))
 
             # cost
             cost = np.sum(np.linalg.norm(Y, axis=1))
@@ -147,12 +160,12 @@ def one_loop(args):
             cost_list.append(cost)
 
         # ISR of mixture
-        callback(mix.transpose([2, 0, 1]), init_W.copy(), distrib)
+        callback(mix.transpose([2, 0, 1]), eye.copy(), distrib)
 
         # separate with IVA
         est, demix_mat = bss.algos[algo_name](
             # mix.transpose([2, 0, 1]).copy(),
-            Y_pca.copy(),
+            Y_init.copy(),
             return_filters=True,
             model=distrib,
             callback=callback,
@@ -181,7 +194,17 @@ def gen_args(master_seed, n_repeat, params, n_frames, distrib, algos, queue):
         for r in range(n_repeat):
             seed = np.random.randint(2 ** 32)
             args.append(
-                (i, p["n_freq"], p["n_chan"], n_frames, distrib, algos, seed, queue)
+                (
+                    i,
+                    p["n_freq"],
+                    p["n_chan"],
+                    p["pca"],
+                    n_frames,
+                    distrib,
+                    algos,
+                    seed,
+                    queue,
+                )
             )
 
     return args
@@ -210,14 +233,6 @@ def progress_tracker(n_tasks, queue):
 
 
 if __name__ == "__main__":
-
-    parser = argparse.ArgumentParser(
-        description="Experiment of IVA with synthetic data"
-    )
-    parser.add_argument("--pca", action="store_true", help="Use PCA for initialization")
-    args = parser.parse_args()
-
-    config["pca"] = args.pca
 
     # we need a queue for inter-process communication
     m = multiprocessing.Manager()
