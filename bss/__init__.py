@@ -22,16 +22,16 @@ This package contains the main algorithms for determined and overdetermined
 independent vector analysis
 """
 from . import default, head, random, utils
-# from .auxiva_iss import auxiva_iss
+from .auxiva_iss import auxiva_iss
 from .auxiva_pca import auxiva_pca
-from .five import five
-from .ogive import ogive, ogive_demix, ogive_mix, ogive_switch
-from .overiva import (auxiva, auxiva2, auxiva_fullhead, auxiva_ipa, auxiva_ipa2, auxiva_iss, auxiva_iss2,
-                      auxiva_ipancg, overiva, overiva_demix_bg,
-                      overiva_ip2_block, overiva_ip2_param, overiva_ip_block,
-                      overiva_ip_param)
-from .iva_ng import iva_ng
 from .fastiva import fastiva
+from .five import five
+from .iva_ng import iva_ng
+from .ogive import ogive, ogive_demix, ogive_mix, ogive_switch
+from .overiva import (auxiva, auxiva2, auxiva_fullhead, auxiva_ipa,
+                      auxiva_ipa2, auxiva_ipancg, auxiva_iss2, overiva,
+                      overiva_demix_bg, overiva_ip2_block, overiva_ip2_param,
+                      overiva_ip_block, overiva_ip_param)
 from .pca import pca
 from .projection_back import project_back
 from .utils import cost_iva
