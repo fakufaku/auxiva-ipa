@@ -2,3 +2,4 @@
 *__pycache__
 samples/
 figures/
+*.npz
