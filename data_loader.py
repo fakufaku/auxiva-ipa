@@ -57,8 +57,8 @@ substitutions = {
         "overiva_demix_steer": "OverIVA-IPA",
         "fastiva": "FastIVA (PCA)",
         "fastiva_nopca": "FastIVA",
-        "iva_ng_0.3": "NG (PCA)",
-        "iva_ng_0.3_nopca": "NG",
+        "iva_ng_0.3": "IVA-NG (PCA)",
+        "iva_ng_0.3_nopca": "IVA-NG",
         "pca": "PCA",
     }
 }

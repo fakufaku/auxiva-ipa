@@ -38,6 +38,13 @@ from data_loader import load_data
 matplotlib.rc("pdf", fonttype=42)
 
 
+def seaborn_config(n_colors):
+    sns.set_theme(
+        context="paper", style="whitegrid", font="sans-serif", font_scale=0.75
+    )
+    sns.set_palette("viridis", n_colors=7)
+
+
 if __name__ == "__main__":
 
     # parse arguments
@@ -76,10 +83,6 @@ if __name__ == "__main__":
     # Draw the figure
     print("Plotting...")
 
-    # sns.set(style='whitegrid')
-    # sns.plotting_context(context='poster', font_scale=2.)
-    # pal = sns.cubehelix_palette(8, start=0.5, rot=-.75)
-
     df_melt = df.melt(id_vars=df.columns[:-5], var_name="metric")
     # df_melt = df_melt.replace(substitutions)
 
@@ -106,31 +109,15 @@ if __name__ == "__main__":
         pca_str = ""
 
     all_algos = [
+        "IVA-NG" + pca_str,
+        "FastIVA" + pca_str,
         "AuxIVA-IP" + pca_str,
         "AuxIVA-ISS" + pca_str,
         "AuxIVA-IP2" + pca_str,
         "AuxIVA-IPA" + pca_str,
-        "AuxIVA-IPA2" + pca_str,
-        "FastIVA" + pca_str,
-        "NG" + pca_str,
     ]
 
-    sns.set(
-        style="whitegrid",
-        context="paper",
-        font_scale=0.75,
-        rc={
-            # 'figure.figsize': (3.39, 3.15),
-            "lines.linewidth": 1.0,
-            # 'font.family': 'sans-serif',
-            # 'font.sans-serif': [u'Helvetica'],
-            # 'text.usetex': False,
-        },
-    )
-    pal = sns.cubehelix_palette(
-        4, start=0.5, rot=-0.5, dark=0.3, light=0.75, reverse=True, hue=1.0
-    )
-    sns.set_palette(pal)
+    seaborn_config(n_colors=len(all_algos))
 
     if not os.path.exists("figures"):
         os.mkdir("figures")
@@ -143,62 +130,8 @@ if __name__ == "__main__":
         os.mkdir(fig_dir)
 
     plt_kwargs = {
-        # "improvements": {"ylim": [-5.5, 20.5], "yticks": [-5, 0, 5, 10, 15]},
-        # "raw": {"ylim": [-5.5, 20.5], "yticks": [-5, 0, 5, 10, 15]},
-        # "runtime": {"ylim": [-0.5, 40.5], "yticks": [0, 10, 20, 30]},
-        1: {
-            "xlim": [
-                [-0.05, 0.2],
-                [-0.05, 0.3],
-                [-0.05, 0.5],
-                [-0.05, 1.0],
-                [-0.05, 1.5],
-            ],
-            "xticks": [
-                [0.0, 0.1, 0.2],
-                [0.0, 0.15, 0.3],
-                [0.0, 0.25, 0.5],
-                [0.0, 0.5, 1.0],
-                [0.0, 0.75, 1.5],
-            ],
-            "ylim": [[0, 5], [0, 14]],
-        },
-        2: {
-            "xlim": [
-                [-0.05, 0.4],
-                [-0.05, 0.7],
-                [-0.05, 1.2],
-                [-0.05, 2.0],
-                [-0.05, 4.0],
-            ],
-            "xticks": [
-                [0.0, 0.2, 0.4],
-                [0.0, 0.35, 0.7],
-                [0.0, 0.6, 1.2],
-                [0.0, 1.0, 2.0],
-                [0.0, 2.0, 4.0],
-            ],
-            "ylim": [[-2, 10], [0, 18]],
-        },
-        3: {
-            "xlim": [[-0.05, 1.5], [-0.05, 3.0], [-0.05, 5.0], [-0.05, 8.0]],
-            "xticks": [
-                [0.0, 0.5, 1.0, 1.5],
-                [0.0, 1.0, 2.0, 3.0],
-                [0.0, 1.5, 3.5, 5.0],
-                [0.0, 2.0, 4.0, 6.0, 8.0],
-            ],
-            "ylim": [[-2, 9], [0, 16]],
-        },
-        4: {
-            "xlim": [[-0.05, 3.0], [-0.05, 6.0], [-0.05, 10.0]],
-            "xticks": [
-                [0.0, 1.0, 2.0, 3.0],
-                [0.0, 2.0, 4.0, 6.0],
-                [0.0, 2.5, 5.0, 7.5, 10.0],
-            ],
-            "ylim": [[-4, 5], [0, 13]],
-        },
+        "Runtime [s]": {"\u0394SI-SDR [dB]": {}, "\u0394SI-SIR [dB]": {}},
+        "Iteration": {"\u0394SI-SDR [dB]": {}, "\u0394SI-SIR [dB]": {}},
     }
 
     full_width = 6.93  # inches, == 17.6 cm, double column width
@@ -206,16 +139,17 @@ if __name__ == "__main__":
 
     # Second figure
     # Convergence curves: Time/Iteration vs SDR
-    aspect = 1.2
-    # height = ((full_width - 0.8) / len(parameters["sinr"])) / aspect
-    height = 1.2
+    cm2in = 0.39
+    fig_width = 17.78  # cm (7 inch)
+
+    aspect = 1.5
+    height = ((full_width * cm2in) / len(parameters["n_mics"])) * aspect
     n_interferers = 0
 
     for x_axis in ["Runtime [s]", "Iteration"]:
-        for sinr in parameters["sinr"]:
-
+        for metric in ["\u0394SI-SDR [dB]", "\u0394SI-SIR [dB]"]:
             select = np.logical_and(
-                df_agg["SINR"] == sinr, df_agg["Interferers"] == n_interferers
+                df_agg["metric"] == metric, df_agg["Interferers"] == n_interferers,
             )
 
             # row_order = ["\u0394SI-SDR [dB]", "\u0394SI-SIR [dB]"]
@@ -229,8 +163,8 @@ if __name__ == "__main__":
             # select = np.logical_and(df_agg["Interferers"] == 5, select)
             g = sns.FacetGrid(
                 df_agg[select],
-                row="metric",
-                row_order=row_order,
+                row="SINR",
+                # row_order=row_order,
                 col="Mics",
                 hue="Algorithm",
                 hue_order=algo_order,
@@ -242,28 +176,44 @@ if __name__ == "__main__":
                 height=height,
                 sharex="col",
                 sharey="row",
+                margin_titles=True,
             )
-            g.map(plt.plot, x_axis, "value", markersize=1.5)
-            g.set_titles("{col_name} Sources/Mics")
+            g.map(plt.semilogx, x_axis, "value", markersize=1.5, nonpositive="mask")
+            g.set_titles(
+                col_template="{col_name} channels", row_template="SNR {row_name} [dB]"
+            )
 
-            for r, lbl in enumerate(row_order):
-                g.facet_axis(r, 0).set_ylabel(lbl)
+            for ax_row in g.axes:
+                ax_row[0].set_ylabel(metric)
+
+            # fix the legend
+            leg_handles = {}
+            for ax_row in g.axes:
+                for ax in ax_row:
+                    handles, labels = ax.get_legend_handles_labels()
+                    for lbl, hand in zip(labels, handles):
+                        if lbl not in leg_handles:
+                            if lbl.endswith(" (PCA)"):
+                                lbl = lbl[:-6]
+                            leg_handles[lbl] = hand
+
+            if x_axis == "Iteration":
+                g.set(xticks=[1, 10, 100, 1000])
+            elif x_axis == "Runtime [s]":
+                g.set(xticks=[0.1, 1, 10])
 
             plt.tight_layout(pad=0.5, w_pad=2.0, h_pad=2.0)
-            g.despine(left=True).add_legend(title="", fontsize="x-small")
-
-            """
-            for r in range(len(row_order)):
-                for c in range(len(n_mics_list)):
-                    if c not in plt_kwargs:
-                        continue
-                    g.axes[r][c].set_xlim(plt_kwargs[c]["xlim"][c])
-                    g.axes[r][c].set_ylim(plt_kwargs[c]["ylim"][r])
-                    g.axes[r][c].set_xticks(plt_kwargs[c]["xticks"][c])
-                    g.axes[r][c].grid(False, axis="x")
-                    if r == 0:
-                        g.axes[r][c].yaxis.set_major_locator(MaxNLocator(integer=True))
-            """
+            g.despine(left=True)
+            g.fig.legend(
+                leg_handles.values(),
+                leg_handles.keys(),
+                loc="upper center",
+                title="",
+                fontsize="x-small",
+                frameon=False,
+                ncol=len(algo_order),
+            )
+            g.fig.subplots_adjust(top=0.90)
 
             # align the y-axis labels
             g.fig.align_ylabels(g.axes[:, 0])
@@ -273,10 +223,10 @@ if __name__ == "__main__":
                 pca_fn_str = "_pca" if cli_args.pca else ""
                 fig_fn = os.path.join(
                     fig_dir,
-                    f"figure4_conv_interf{n_interferers}_{x_inc}_sinr{sinr}{pca_fn_str}.{ext}",
+                    f"figure4_conv_interf{n_interferers}_{x_inc}_{metric}{pca_fn_str}.{ext}",
                 )
                 plt.savefig(fig_fn, bbox_inches="tight")
-            plt.close()
+        plt.close()
 
     if plot_flag:
         plt.show()

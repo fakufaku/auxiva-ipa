@@ -11,7 +11,7 @@ from bss.head import HEADUpdate
 
 config = {
     "seed": 873009,
-    "n_repeat": 1000,
+    "n_repeat": 100,
     "n_chan": [4, 6, 8],
     "tol": -1.0,  # i.e. ignore tolerance
     "maxiter": 1000,
@@ -78,6 +78,17 @@ def f_loop(args):
     return V.shape[-1], infos, runtimes
 
 
+def rand_V(n_freq, n_chan, dtype=np.complex128):
+
+    # random hermitian PSD matrices
+    X = bss.random.crandn(n_freq, n_chan, n_chan, n_chan)
+    X = 0.5 * (X + bss.utils.tensor_H(X))
+    w, U = np.linalg.eigh(X)
+    V = (U * np.abs(w[..., None, :])) @ bss.utils.tensor_H(U)
+
+    return V
+
+
 if __name__ == "__main__":
     methods = {
         "IPA": HEADUpdate.IPA,
@@ -97,10 +108,7 @@ if __name__ == "__main__":
     # construct the list of parallel arguments
     parallel_args = []
     for n_chan in config["n_chan"]:
-        n_samples = n_chan
-        V = bss.random.rand_psd(
-            config["n_repeat"], n_chan, n_chan, inner=n_samples, dtype=config["dtype"]
-        )
+        V = rand_V(config["n_repeat"], n_chan, dtype=config["dtype"],)
         for v_mat in V:
             parallel_args.append(
                 (v_mat, config["maxiter"], config["tol"], methods, the_queue)

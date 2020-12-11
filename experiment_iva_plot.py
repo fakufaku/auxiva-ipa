@@ -57,18 +57,21 @@ n_bins = 30
 # figure size
 cm2in = 0.39
 fig_width = 17.78  # cm (7 inch)
-fig_height = 10  # cm
-leg_space = 2.2  # cm
+fig_height = 8  # cm
+leg_space = 1.6  # cm
 figsize = (fig_width * cm2in, fig_height * cm2in)
 
 # criteria for convergence of cost function
 cost_eps_convergence = 1e-2
-figsize_cost = (fig_width * cm2in, 4 * cm2in)
+isr_eps_convergence = 1e-2
+fig_width_cost = 8.5
+fig_heigh_cost = 4
+figsize_cost = (fig_width_cost * cm2in, fig_heigh_cost * cm2in)
 ### END CONFIG ###
 
 
 def seaborn_config(n_colors):
-    sns.set_theme(context="paper", style="white", font="sans-serif", font_scale=1)
+    sns.set_theme(context="paper", style="white", font="sans-serif", font_scale=0.75)
     sns.set_palette("viridis", n_colors=7)
 
 
@@ -249,28 +252,29 @@ def make_plot_isr(config, arg_isr_tables, arg_cost_tables, with_pca=True):
             else:
                 callback_checkpoints = np.arange(0, n_iter + 1)
 
-            if not algo.startswith("fullhead"):
-                # isr
-                y_lim_isr = [
-                    min(y_lim_isr[0], table.min()),
-                    max(y_lim_isr[1], table.max()),
-                ]
+            # isr
+            y_lim_isr = [
+                min(y_lim_isr[0], table.min()),
+                max(y_lim_isr[1], np.percentile(table, 99.5)),
+            ]
 
             I_s = table[:, -1] < fail_thresh  # separation is sucessful
             I_f = table[:, -1] >= fail_thresh  # separation fails
 
+            f_agg = np.mean
+
             # ISR convergence
             p = axes[mos_map[ip][0]].semilogx(
                 np.array(callback_checkpoints),
-                np.mean(table[I_s, :], axis=0),
+                f_agg(table[I_s, :], axis=0),
                 label=title_dict[algo],
             )
 
             # keep the percentage and mean of success/failure
             percent_converge[ip][algo] = (
                 np.sum(I_s) / len(I_s),
-                np.mean(table[I_s, -1]),
-                np.mean(table[I_f, -1]),
+                f_agg(table[I_s, -1]),
+                f_agg(table[I_f, -1]),
             )
 
             # get color of main line
@@ -279,7 +283,7 @@ def make_plot_isr(config, arg_isr_tables, arg_cost_tables, with_pca=True):
             # now draw the divergent line
             axes[mos_map[ip][0]].plot(
                 np.array(callback_checkpoints),
-                np.mean(table[I_f, :], axis=0),
+                f_agg(table[I_f, :], axis=0),
                 alpha=0.6,
                 c=c,
                 linestyle="--",
@@ -331,7 +335,7 @@ def make_plot_isr(config, arg_isr_tables, arg_cost_tables, with_pca=True):
             if ip == n_rows - 1:
                 axes[mos_map[ip][i + 1]].set_xticks([np.mean(x_lim_hist_isr)])
                 axes[mos_map[ip][i + 1]].set_xticklabels(
-                    [title_dict[algo]], rotation=75
+                    [title_dict[algo]]  # , rotation=75
                 )
             else:
                 axes[mos_map[ip][i + 1]].set_xticks([])
@@ -341,20 +345,21 @@ def make_plot_isr(config, arg_isr_tables, arg_cost_tables, with_pca=True):
             # success
             pts = [0.25 * x_lim_hist_isr[1], y_s + 4.0]
             axes[mos_map[ip][i + 1]].annotate(
-                f"{100 * p:0.1f}%", pts, fontsize="x-small"
+                f"{100 * p:4.1f}%", pts, fontsize="x-small", ha="left"
             )
             # failure
             pts = [0.25 * x_lim_hist_isr[1], y_f + 4.0]
             axes[mos_map[ip][i + 1]].annotate(
-                f"{100 * (1 - p):0.1f}%", pts, fontsize="x-small"
+                f"{100 * (1 - p):4.1f}%", pts, fontsize="x-small", ha="left"
             )
 
-        axes[mos_map[ip][0]].set_title(f"{n_freq} mixtures, {n_chan} channels")
+        axes[mos_map[ip][0]].set_title(f"$F={n_freq}$ $M={n_chan}$")
         axes[mos_map[ip][0]].set_ylabel("ISR [dB]")
 
     axes[mos_map[0][0]].annotate("SeDJoCo/IPA overlap", [1, -52], fontsize="xx-small")
+    axes[mos_map[-1][0]].set_xlabel("Iteration")
 
-    fig.tight_layout(pad=0.1, w_pad=0.4, h_pad=0.2)
+    fig.tight_layout(pad=0.1, w_pad=0.2, h_pad=1)
     figleg = fig.legend(
         leg_handles.values(),
         leg_handles.keys(),
@@ -364,11 +369,10 @@ def make_plot_isr(config, arg_isr_tables, arg_cost_tables, with_pca=True):
         # bbox_to_anchor=[1 - leg_space / fig_width, 0.5],
         bbox_to_anchor=[1, 0.5],
         loc="center right",
+        frameon=False,
     )
 
     fig.subplots_adjust(right=1 - leg_space / (fig_width))
-
-    axes[mos_map[-1][0]].set_xlabel("Iteration")
 
     return fig, axes
 
@@ -410,15 +414,16 @@ def make_figure_cost(config, arg_isr_tables, arg_cost_tables, with_pca=True):
     leg_handles = {}
     y_lim = [np.inf, -np.inf]
 
+    y_lim_up = -100000
     ticks = [
-        [-200000, -100000, 0.0],
-        [-300000, -150000, 0.0],
-        [-400000, -200000, 0.0],
+        [-200000, y_lim_up],
+        [-300000, y_lim_up],
+        [-400000, y_lim_up],
     ]
     ticklabels = [
-        ["$-2 x 10^5$", "$-10^5$", "$0$",],
-        ["$-3 x 10^5$", "$-1.5 x 10^5$", "$0$",],
-        ["$-4 x 10^5$", "$-2 x 10^5$", "$0$",],
+        ["$-2 x 10^5$", "$-10^5$",],
+        ["$-3 x 10^5$", "$-10^5$",],
+        ["$-4 x 10^5$", "$-10^5$",],
     ]
 
     for ip, pmt in enumerate(params):
@@ -430,7 +435,7 @@ def make_figure_cost(config, arg_isr_tables, arg_cost_tables, with_pca=True):
                 continue
             table = cost_tables[ip][algo]
 
-            agg_cost = np.median(table, axis=0)
+            agg_cost = np.mean(table, axis=0)
 
             axes[ip].semilogx(
                 np.arange(1, len(agg_cost) + 1), agg_cost, label=title_dict[algo]
@@ -441,6 +446,10 @@ def make_figure_cost(config, arg_isr_tables, arg_cost_tables, with_pca=True):
                 max(y_lim[1], agg_cost.max()),
             ]
 
+        y_lim[1] = y_lim_up
+
+        y_lim[0] = y_lim[0] - 0.05 * np.diff(y_lim)
+
         # collect the labels
         handles, labels = axes[ip].get_legend_handles_labels()
         for lbl, hand in zip(labels, handles):
@@ -449,35 +458,31 @@ def make_figure_cost(config, arg_isr_tables, arg_cost_tables, with_pca=True):
 
         axes[ip].set_xlabel("Iteration")
         axes[ip].set_xticks([1, 10, 100])
-        axes[ip].set_title(f"{n_freq} mixtures, {n_chan} channels")
+        axes[ip].set_title(f"$F={n_freq}$ M={n_chan}")
+        axes[ip].set_ylim(y_lim)
 
         if ip < len(ticks):
             axes[ip].set_yticks(ticks[ip])
         if ip < len(ticklabels):
-            axes[ip].set_yticklabels(ticklabels[ip])
+            axes[ip].set_yticklabels(ticklabels[ip], fontsize=20)
+        axes[ip].tick_params(axis="y", labelsize="x-small", rotation=30, pad=-0.1)
 
     sns.despine(fig=fig, offset=0.1)
 
-    """
-    y_lim[1] = -100000
-    y_lim = np.array(y_lim)
-    y_lim = 1.05 * (y_lim - np.mean(y_lim)) + np.mean(y_lim)
-    for ip, pmt in enumerate(params):
-        axes[ip].set_ylim(y_lim)
-    """
-
-    fig.tight_layout(pad=0.1, w_pad=0.4, h_pad=1.0)
-    figleg = fig.legend(
+    fig.tight_layout(pad=0.1, w_pad=0.0, h_pad=1.0)
+    figleg = axes[-1].legend(
         leg_handles.values(),
         leg_handles.keys(),
         title="Algorithm",
         title_fontsize="x-small",
         fontsize="x-small",
         # bbox_to_anchor=[1 - leg_space / fig_width, 0.5],
-        bbox_to_anchor=[1, 0.5],
-        loc="center right",
+        # bbox_to_anchor=[1, 0.5],
+        bbox_to_anchor=[1.15, 1.1],
+        loc="upper right",
+        frameon=False,
     )
-    fig.subplots_adjust(right=1 - leg_space / (fig_width))
+    # fig.subplots_adjust(right=1 - leg_space / (fig_width_cost))
 
     return fig, axes
 
@@ -516,13 +521,12 @@ def make_table_cost(config, arg_isr_tables, arg_cost_tables, with_pca=True):
         for i, algo in enumerate(include_algos):
             if algo not in isr_tables[ip]:
                 continue
-            table = cost_tables[ip][algo]
 
+            # Cost
+            table = cost_tables[ip][algo]
             dtable = -np.diff(table, axis=1)
             dtable /= np.abs(table[:, :1])
-
             converge_epoch = []
-
             for r in range(dtable.shape[0]):
                 S = np.where((dtable[r] >= 0) & (dtable[r] < cost_eps_convergence))[0]
                 if len(S) == 0:
@@ -530,7 +534,19 @@ def make_table_cost(config, arg_isr_tables, arg_cost_tables, with_pca=True):
                 else:
                     converge_epoch.append(S[0] + 1)
 
+            # Objective
             mean_objective = np.mean(table[:, -1])
+
+            # ISR
+            table = isr_tables[ip][algo]
+            dtable = -np.diff(table, axis=1)
+            converge_epoch_isr = []
+            for r in range(dtable.shape[0]):
+                S = np.where((dtable[r] >= 0) & (dtable[r] < isr_eps_convergence))[0]
+                if len(S) == 0:
+                    converge_epoch_isr.append(len(dtable[r]))
+                else:
+                    converge_epoch_isr.append(S[0] + 1)
 
             results.append(
                 {
@@ -540,6 +556,7 @@ def make_table_cost(config, arg_isr_tables, arg_cost_tables, with_pca=True):
                     "mean_epoch": np.mean(converge_epoch),
                     "median_epoch": int(np.median(converge_epoch)),
                     "max_epoch": np.max(converge_epoch),
+                    "median_isr_epoch": int(np.median(converge_epoch_isr)),
                     "obj_val": mean_objective,
                 }
             )
@@ -549,26 +566,39 @@ def make_table_cost(config, arg_isr_tables, arg_cost_tables, with_pca=True):
     df = pd.DataFrame(results)
 
     ret = {}
-    for metric in ["mean_epoch", "median_epoch", "max_epoch", "obj_val"]:
-        # create the pivot table
-        df_loc = df[["$F$", "$M$", "algo", metric]].pivot_table(
-            index=["$F$", "$M$"], columns=["algo"],  # values=["obj_val"]
-        )
 
-        # reorder the columns
-        df_loc = df_loc.reindex(columns=algo_order, level=1)
-        ret[metric] = df_loc
+    """
+    # create the pivot table
+    df_loc = df[["$F$", "$M$", "algo", "median_isr_epoch", "median_epoch"]].pivot_table(
+        columns=["$F$", "$M$"], index=["algo"],  # values=["obj_val"]
+    )
 
-        # print the stuff
-        print("---===---")
-        print(metric)
-        print()
-        print(df_loc)
-        print()
-        print(df_loc.to_latex(float_format="%.1f"))
-        print()
+    # reorder the columns
+    df_loc = df_loc.reindex(index=algo_order)
 
-    return ret
+    # print the stuff
+    print("---===---")
+    print(metric)
+    print()
+    print(df_loc)
+    print()
+    print(df_loc.to_latex(float_format="%.1f"))
+    print()
+    """
+    df_loc = df.pivot_table(index=["algo"], columns=["$F$", "$M$"])
+    df_loc = df_loc[["median_epoch", "median_isr_epoch"]]
+
+    # print the stuff
+    print("---===---")
+    print("Median epoch (ISR+Cost)")
+    print()
+    print(df_loc)
+    print()
+    print(df_loc.to_latex(float_format="%.1f"))
+    print()
+    print("---===---")
+
+    return df
 
 
 if __name__ == "__main__":
@@ -589,6 +619,7 @@ if __name__ == "__main__":
     for pca in [True]:
         pca_str = "_pca" if pca else ""
 
+        """
         # create the ISR plots
         fig, axes = make_plot_isr(config, isr_tables, cost_tables, with_pca=pca)
         filename = figure_dir / (args.data.stem + f"_isr{pca_str}.pdf")
@@ -598,6 +629,7 @@ if __name__ == "__main__":
         fig, axes = make_figure_cost(config, isr_tables, cost_tables, with_pca=pca)
         filename = figure_dir / (args.data.stem + f"_cost{pca_str}.pdf")
         fig.savefig(filename)
+        """
 
         # compute the values for the cost function
         tables = make_table_cost(config, isr_tables, cost_tables, with_pca=pca)

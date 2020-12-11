@@ -9,8 +9,8 @@ from scipy.linalg import block_diag
 from scipy.sparse.linalg import (LinearOperator, bicg, bicgstab, cgs, gmres,
                                  lgmres)
 
-from .random import crandn, rand_psd
-from .update_rules import _ipa
+from .random import crandn, rand_psd, rand_mixture
+from .update_rules import _ipa, _iss_single
 from .utils import iscomplex, isreal, tensor_H
 
 
@@ -18,10 +18,10 @@ class HEADUpdate(Enum):
     NCG = "NCG"
     IP = "IP"
     ISS = "ISS"
+    ISS_alt = "ISS_alt"
     IPA = "IPA"
     IP2 = "IP2"
     IPA_NCG = "IPA_NCG"
-    FP1 = "FP1"
 
 
 def _validate_covmat_parameter(V):
@@ -47,15 +47,27 @@ def _validate_input_parameters(V, W):
 
     return V, W, eye, n_freq, n_chan
 
-def head_system(V, W):
+def head_system(V, W, inv=False):
     V, W, eye, n_freq, n_chan = _validate_input_parameters(V, W)
 
-    # shape (n_freq, n_chan, n_chan, 1)
-    VW_H = V @ np.conj(W[..., None])
-    VW_H = VW_H[..., 0].swapaxes(-2, -1)
+    if not inv:
+        # shape (n_freq, n_chan, n_chan, 1)
+        VW_H = V @ np.conj(W[..., None])
+        VW_H = VW_H[..., 0].swapaxes(-2, -1)
 
-    # shape (n_freq, n_chan, n_chan)
-    WVW_H = W @ VW_H
+        # shape (n_freq, n_chan, n_chan)
+        WVW_H = W @ VW_H
+
+    else:
+        A_H = tensor_H(np.linalg.inv(W))
+        V_inv = np.linalg.inv(V)
+
+        # shape (n_freq, n_chan, n_chan, 1)
+        V_inv_A = V_inv @ np.conj(A_H[..., None])
+        V_inv_A = V_inv_A[..., 0].swapaxes(-2, -1)
+
+        # shape (n_freq, n_chan, n_chan)
+        WVW_H = A_H @ V_inv_A
 
     return WVW_H
 
@@ -321,47 +333,58 @@ def head_update_ip2(V, W):
     return W
 
 
-def head_update_iss(V, W):
+def head_update_iss(V, W, test_gradient=False):
     V, W, eye, n_freq, n_chan = _validate_input_parameters(V, W)
 
     for s in range(n_chan):
         # shape (n_freq, n_chan, 1, 1)
         v_top = W[:, :, None, :] @ V @ np.conj(W[:, [s], :, None])
-        v_bot = W[:, [s], None, :] @ V @ np.conj(W[:, [s], :, None])
+        v_bot = np.real(W[:, [s], None, :] @ V @ np.conj(W[:, [s], :, None]))
         v = v_top / v_bot
 
         # adjust the scale
-        # v[:, s] = 1.0 - np.sqrt(np.reciprocal(np.maximum(v_bot[:, s, :, :], 1e-15)))
-        v[:, s] = 0.
+        v[:, s] = 1.0 - np.sqrt(np.reciprocal(np.maximum(v_bot[:, s, :, :], 1e-15)))
 
         # remove the last dim
         v = v[..., 0]
 
+        if test_gradient:
+            gv = - v_top + v[..., None] * v_bot
+            gv[:, s] = np.reciprocal(1 - np.conj(v[:, s])) - (1 - v[:, s]) * v_bot[:, s]
+
+            print(s)
+            print("  ", np.max(np.abs(gv)))
+            print("  ", np.max(np.abs(gv[:, s])))
+
         # subtract from demixing matrix
         W -= v * W[:, [s], :]
 
-        # normalization
-        WW = W[:, :, None, :]
-        WVWH = WW @ V @ tensor_H(WW)
-        d = 1.0 / np.maximum(np.sqrt(WVWH), 1e-15)
-        d = d[..., 0]
-        W *= d
-
     return W
 
-def head_update_fp1(V, W):
+def head_update_iss_alt(V, W, test_gradient=False):
+    """ simple implementation to verify correctness """
     V, W, eye, n_freq, n_chan = _validate_input_parameters(V, W)
 
-    # shape (n_freq, n_chan, n_chan, 1)
-    VW_H = V @ np.conj(W[..., None])
-    VW_H = VW_H[..., 0].swapaxes(-2, -1)  # remove last dim
+    for f in range(n_freq):
+        for s in range(n_chan):
+            # shape (n_freq, n_chan, 1, 1)
+            Wf = W[f]
+            ws = np.conj(W[f, s, :])
+            v = np.zeros(n_chan, dtype=W.dtype)
 
-    W = np.linalg.inv(VW_H)
+            for s2 in range(n_chan):
+                d = np.abs(np.conj(ws) @ V[f, s2] @ ws)
+                if s2 == s:
+                    v[s2] = 1 - 1. / np.sqrt(d)
+                else:
+                    u = Wf[s2, :] @ V[f, s2] @ ws
+                    v[s2] = u / d
 
-    scale = W[..., None, :] @ V @ np.conj(W[..., None])
-    W /= np.sqrt(scale[..., 0])
+            # subtract from demixing matrix
+            W[f] -= v[:, None] * Wf[[s], :]
 
     return W
+
 
 def head_solver(
     V, W=None, method=HEADUpdate.NCG, maxiter=1000, tol=1e-10, info=False, verbose=False
@@ -402,9 +425,9 @@ def head_solver(
         HEADUpdate.NCG: head_update_ncg,
         HEADUpdate.IP: head_update_ip,
         HEADUpdate.ISS: head_update_iss,
+        HEADUpdate.ISS_alt: head_update_iss_alt,
         HEADUpdate.IP2: head_update_ip2,
         HEADUpdate.IPA: head_update_ipa,
-        HEADUpdate.FP1: head_update_fp1,
     }
 
     V, W, eye, n_freq, n_chan = _validate_input_parameters(V, W)
@@ -517,6 +540,62 @@ def test_Hessian_matrix(V):
     error = np.max(np.abs(X1 - X2))
     error_inv = np.max(np.abs(Y1 - Y2))
     print(f"error matvec={error} solve={error_inv}")
+
+
+def test_gradient_iss(V):
+    V, W, eye, n_freq, n_chan = _validate_input_parameters(V, None)
+    head_update_iss(V, W, test_gradient=True)
+
+def test_head_solver(n_freq=1, n_chan=4, n_frames=None, dtype=np.complex128, method=HEADUpdate.ISS, seed=0):
+    np.random.seed(seed)
+
+    if n_frames is None:
+        n_frames = n_chan
+
+    X, ref, mix_mat = rand_mixture(
+        n_freq, n_chan, n_frames, dtype=dtype
+    )
+    r_inv = np.reciprocal(np.linalg.norm(X, axis=0))
+    V = np.zeros((n_freq, n_chan, n_chan, n_chan), dtype=dtype)
+    for s in range(n_chan):
+        V[:, s] = (X * r_inv[None, [s], :]) @ tensor_H(X) / n_frames
+        V[:, s] = 0.5 * (V[:, s] + tensor_H(V[:, s]))
+
+    head_solver(V, verbose=True, method=method)
+
+def test_iss_updates():
+    n_frames = 100
+    n_freq = 4
+    n_chan = 50
+    n_iter = 100
+    dtype=np.float64
+
+    W = np.zeros((n_freq, n_chan, n_chan), dtype=dtype)
+    W[:] = np.eye(n_chan)[None, ...]
+
+    X, ref, mix_mat = rand_mixture(
+        n_freq, n_chan, n_frames, dtype=dtype
+    )
+    r_inv = np.reciprocal(np.linalg.norm(X, axis=0))
+
+    # the bss way
+    W1 = W.copy()
+    for epoch in range(n_iter):
+        for s in range(n_chan):
+            _iss_single(s, X, W1, r_inv)
+
+    # the SeDJoCo way
+    W2 = W.copy()
+    V = np.zeros((n_freq, n_chan, n_chan, n_chan), dtype=dtype)
+    for s in range(n_chan):
+        V[:, s] = (X * r_inv[None, [s], :]) @ tensor_H(X) / n_frames
+        V[:, s] = 0.5 * (V[:, s] + tensor_H(V[:, s]))
+    for epoch in range(n_iter):
+        head_update_iss(V, W2)
+
+    print(np.max(np.abs(W1 - W2)))
+
+    return W1, W2
 
 
 if __name__ == "__main__":
