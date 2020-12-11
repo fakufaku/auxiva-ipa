@@ -90,14 +90,6 @@ def rand_V(n_freq, n_chan, dtype=np.complex128):
 
 
 if __name__ == "__main__":
-    methods = {
-        "IPA": HEADUpdate.IPA,
-        "IP": HEADUpdate.IP,
-        "ISS": HEADUpdate.ISS,
-        "IP2": HEADUpdate.IP2,
-        "NCG": HEADUpdate.NCG,
-        "IPA+NCG": HEADUpdate.IPA_NCG,
-    }
 
     np.random.seed(config["seed"])
 
