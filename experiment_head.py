@@ -11,7 +11,7 @@ from bss.head import HEADUpdate
 
 config = {
     "seed": 873009,
-    "n_repeat": 100,
+    "n_repeat": 1000,
     "n_chan": [4, 6, 8],
     "tol": -1.0,  # i.e. ignore tolerance
     "maxiter": 1000,
