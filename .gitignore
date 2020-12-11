@@ -3,3 +3,4 @@
 samples/
 figures/
 *.npz
+*.tar.gz
