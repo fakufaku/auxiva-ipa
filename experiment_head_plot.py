@@ -65,14 +65,17 @@ def make_figure(
         for method in methods_order:
             key = methods[method]
 
+            median_head_error = np.median(infos[n_chan][method]["head_errors"], axis=0)
             axes[0, c].loglog(
-                np.median(infos[n_chan][method]["head_errors"], axis=0), label=method
+                np.arange(len(median_head_error)) + 1, median_head_error, label=method
             )
-            axes[0, c].set_ylim([1e-32, 100])
+            axes[0, c].set_ylim([1e-32, 1000])
             axes[0, c].set_xticks([1, 10, 100, 1000])
             axes[0, c].set_xticklabels(["", "", "", ""])
             if c > 0:
                 axes[0, c].set_yticks([])
+            else:
+                axes[0, c].set_yticks([1e-30, 1e-20, 1e-10, 1e0])
 
             # cost
             cost_agg = np.median(infos[n_chan][method]["head_costs"] - min_cost, axis=0)
@@ -85,8 +88,8 @@ def make_figure(
             axes[1, c].yaxis.labelpad = 1
 
             # X axis limits
-            # axes[0, c].set_xlim([1, 1000])
-            # axes[1, c].set_xlim([1, 1000])
+            axes[0, c].set_xlim([1, 500])
+            axes[1, c].set_xlim([1, 500])
             # Y axis labels
             axes[0, c].set_title(f"$M={n_chan}$")
             axes[1, c].set_xlabel("Iteration")
@@ -103,13 +106,13 @@ def make_figure(
                     leg_handles[lbl] = hand
 
         cost_ylim = np.array(cost_ylim)
-        cost_ylim_m = 0.90 * cost_ylim[0] + 0.10 * cost_ylim[1]
+        cost_ylim_m = 0.80 * cost_ylim[0] + 0.20 * cost_ylim[1]
         cost_ylim = cost_ylim_m + np.r_[1.05, 0.0] * (cost_ylim - cost_ylim_m)
         axes[1, c].set_ylim(cost_ylim)
 
     sns.despine(fig=fig)
 
-    fig.tight_layout(pad=0.1)
+    fig.tight_layout(pad=0.1, h_pad=0.5)
 
     fig.legend(
         leg_handles.values(),
@@ -134,7 +137,7 @@ def make_table(
     data, config, methods, infos, runtimes,
 ):
 
-    n_iters = [0, 1, 2, 3]
+    n_iters = [1, 2]
     ref_method = "IPA"
     assert ref_method in methods
 
@@ -155,7 +158,6 @@ def make_table(
                 cost_progress = cost_table[:, 0] - cost_table[:, n]
 
                 ratio_percent = np.mean(cost_progress / cost_progress_ref) * 100
-                # ratio_percent = np.median(cost_table[:, n])
 
                 res.append(
                     {"n_chan": n_chan, "n": n, "algo": method, "ratio": ratio_percent}

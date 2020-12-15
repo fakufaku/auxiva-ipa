@@ -78,7 +78,7 @@ if __name__ == "__main__":
     plot_flag = cli_args.show
     pickle_flag = cli_args.pickle
 
-    df, rt60, parameters = load_data(cli_args.dirs, pickle=pickle_flag)
+    df, conv_tbl, rt60, parameters = load_data(cli_args.dirs, pickle=pickle_flag)
 
     # Draw the figure
     print("Plotting...")

@@ -30,7 +30,8 @@ from matplotlib import cm
 from mpl_toolkits.mplot3d import Axes3D  # noqa: F401 unused import
 
 from bss.newton_root import init_newton, newton
-from utils import crandn, tensor_H
+from bss.random import crandn
+from bss.utils import tensor_H
 
 
 def rand_psd(*shape, dtype=np.complex):

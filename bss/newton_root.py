@@ -185,6 +185,7 @@ def newton(
     atol=1e-7,
     verbose=False,
     plot=False,
+    return_iter=False,
 ):
     """
     Parameters
@@ -218,7 +219,7 @@ def newton(
 
             violate = new_lambda <= lower_bound[I]
             new_lambda[violate] = (
-                0.5 * lower_bound[I[violate]] + 0.5 * new_lambda[I[violate]]
+                0.5 * lower_bound[I[violate]] + 0.5 * lambda_[I[violate]]
             )
 
         lambda_[I] = new_lambda
@@ -226,7 +227,7 @@ def newton(
         f_val, df_val = f(lambda_[I], phi[I, :], v[I, :], z[I], df_needed=True)
         left = np.abs(f_val) > atol
 
-        # if now value is larger than the tolerance, stop
+        # if no value is larger than the tolerance, stop
         if np.sum(left) == 0:
             break
 
@@ -243,10 +244,13 @@ def newton(
         imax = I[np.argmax(np.abs(f_val))]
         show_constraint(lambda_[imax], phi[imax, :], v[imax, :], z[imax])
 
-    return lambda_
+    if return_iter:
+        return lambda_, epoch, f_val
+    else:
+        return lambda_
 
 
-def bisection(lo, hi, phi, v, z, max_iter=100, atol=1e-7, verbose=False):
+def bisection(lo, hi, phi, v, z, max_iter=100, atol=1e-7, verbose=False, return_iter=False):
     def obj(x, I=None):
         if I is not None:
             x = x[I]
@@ -306,4 +310,7 @@ def bisection(lo, hi, phi, v, z, max_iter=100, atol=1e-7, verbose=False):
     if verbose:
         print(f"bisection: epochs={epoch} tol={np.max(np.abs(mid_val))}")
 
-    return mid
+    if return_iter:
+        return mid, epoch
+    else:
+        return mid

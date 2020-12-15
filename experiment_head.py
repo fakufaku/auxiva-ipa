@@ -14,7 +14,7 @@ config = {
     "n_repeat": 100,
     "n_chan": [4, 6, 8],
     "tol": -1.0,  # i.e. ignore tolerance
-    "maxiter": 1000,
+    "maxiter": 100,
     "dtype": np.complex128,
 }
 
@@ -78,13 +78,20 @@ def f_loop(args):
     return V.shape[-1], infos, runtimes
 
 
-def rand_V(n_freq, n_chan, dtype=np.complex128):
+def rand_V(n_freq, n_chan, n_mat=None, dtype=np.complex128):
+
+    if n_mat is None:
+        n_mat = n_chan
 
     # random hermitian PSD matrices
-    X = bss.random.crandn(n_freq, n_chan, n_chan, n_chan)
-    X = 0.5 * (X + bss.utils.tensor_H(X))
+    X = bss.random.crandn(n_freq, n_mat, n_chan, n_chan)
     w, U = np.linalg.eigh(X)
+    w[:] = np.random.rand(*w.shape)
     V = (U * np.abs(w[..., None, :])) @ bss.utils.tensor_H(U)
+    V = 0.5 * (V + bss.utils.tensor_H(V))
+
+    X = bss.random.crandn(n_freq, n_mat, n_chan, 10 * n_chan)
+    V = X @ bss.utils.tensor_H(X)
 
     return V
 

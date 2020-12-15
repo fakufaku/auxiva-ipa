@@ -28,6 +28,8 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+threshold_convergence = 1e-4
+
 # This table maps some of the labels we used in the
 # simulation to labels we would like to use in the figures
 # of the paper
@@ -99,12 +101,14 @@ def load_data(dirs, pickle=False):
     # check if a pickle file exists for these files
     pickle_file = f".{parameters['name']}.pickle"
     rt60_file = ".rt60.pickle"
+    convergence_file = ".convergence.pickle"
 
     if os.path.isfile(pickle_file) and pickle:
         print("Reading existing pickle file...")
         # read the pickle file
         df = pd.read_pickle(pickle_file)
         rt60 = pd.read_pickle(rt60_file)
+        conv_tbl = pd.read_pickle(convergence_file)
 
     else:
 
@@ -138,6 +142,7 @@ def load_data(dirs, pickle=False):
             "Success",
         ]
         table = []
+        convergence_table = []
         num_sources = set()
 
         copy_fields = [
@@ -179,6 +184,32 @@ def load_data(dirs, pickle=False):
                 number_failed_records += 1
                 continue
 
+            # fill the convergence table
+            cost_init = record["cost"][0]
+            converged_iter = None
+            for i, (n_iter, cost) in enumerate(zip(checkpoints, record["cost"])):
+                if i == 0:
+                    continue
+
+                progress_one_step = cost - record["cost"][i - 1]
+                progress_total = cost - cost_init
+
+                if (
+                    np.abs(progress_one_step) / np.abs(progress_total)
+                    < threshold_convergence
+                ):
+                    converged_iter = n_iter
+                    break
+
+            entry = [record[field] for field in copy_fields]
+            if converged_iter is None:
+                convergence_table.append(entry + [np.nan, np.nan])
+            else:
+                convergence_table.append(
+                    entry + [converged_iter, converged_iter * runtime]
+                )
+
+            # fill the SDR/SIR table
             sdr_i = np.array(record["sdr"][0])  # Initial SDR
             sir_i = np.array(record["sir"][0])  # Initial SDR
 
@@ -214,9 +245,13 @@ def load_data(dirs, pickle=False):
         print("Making PANDAS frame...")
         df = pd.DataFrame(table, columns=columns)
         rt60 = pd.DataFrame(rt60_list, columns=["RT60"])
+        conv_tbl = pd.DataFrame(
+            convergence_table, columns=columns[:8] + ["Iterations", "Runtime"]
+        )
 
         df.to_pickle(pickle_file)
         rt60.to_pickle(rt60_file)
+        conv_tbl.to_pickle(convergence_file)
 
         if number_failed_records > 0:
             import warnings
@@ -225,8 +260,9 @@ def load_data(dirs, pickle=False):
 
     # apply the subsititutions
     df = df.replace(substitutions)
+    conv_tbl = conv_tbl.replace(substitutions)
 
-    return df, rt60, parameters
+    return df, conv_tbl, rt60, parameters
 
 
 if __name__ == "__main__":
@@ -252,4 +288,4 @@ if __name__ == "__main__":
     dirs = args.dirs
     pickle = args.pickle
 
-    df, rt60, parameters = load_data(args.dirs, pickle=pickle)
+    df, conv_tbl, rt60, parameters = load_data(args.dirs, pickle=pickle)
