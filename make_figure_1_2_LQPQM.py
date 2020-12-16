@@ -116,6 +116,14 @@ def show_constraint(
     ln, phi, v, z, show_one_out=False, show_init=False, figsize=None, save=None
 ):
 
+    n_colors = 2
+    if show_one_out:
+        n_colors += 1
+    if show_init:
+        n_colors += 1
+
+    sns.set_palette("viridis", n_colors=n_colors)
+
     lambdas = np.linspace(1e-5, 1.3 * ln[0], 50000,)
     f_val = f(lambdas, phi, v, z)
     obj_val = f_obj(lambdas, phi, v, z)
@@ -136,7 +144,7 @@ def show_constraint(
         plt.plot(lambdas, poly, label="Cubic approx. of $f(\lambda)$")
 
     plt.plot(lambdas, test_val, label="$g(\lambda)$ (objective)")
-    plt.plot(lambdas, f_val, label="$f(\lambda)$ (secular eq.)")
+    plt.plot(lambdas, f_val, label="$f(\lambda)$ (constraint)")
 
     # Highlight the location of the solution
     ax = plt.gca()
@@ -203,6 +211,16 @@ if __name__ == "__main__":
     b = np.zeros(2)
     C = np.array([[12.0, 0.5], [0.5, 1.0]])
     d = np.array([-0.13, 1.0])
+
+    w, v = np.linalg.eigh(C)
+    w[0] *= 3.0
+    C = (v * w[None, :]) @ v.T
+
+    d_hat = v.T @ d
+    d_hat[0] *= 0.4
+    d_hat[1] *= 2.0
+    d = v @ d_hat
+
     z = 0.07
 
     # solve the problem
@@ -218,7 +236,7 @@ if __name__ == "__main__":
     fig = plt.figure(figsize=(8.5 * _cm, 5.0 * _cm))
 
     ax1 = fig.add_subplot(1, 2, 2)
-    ct = ax1.contourf(x, y, obj, levels=10, cmap=cm.coolwarm)
+    ct = ax1.contourf(x, y, obj, levels=20, cmap=cm.coolwarm)
     ax1.plot(sol[0], sol[1], "x")
     ax1.set_xlabel("$x_1$")
     ax1.set_ylabel("$x_2$")
@@ -241,7 +259,7 @@ if __name__ == "__main__":
     fig.savefig("figures/figure1_loss_landscape.pdf")
 
     show_constraint(
-        lambda_[None], phi[None, :], v_tilde[None, :], np.array([z]), show_init=True,
+        lambda_[None], phi[None, :], v_tilde[None, :], np.array([z]), show_init=False,
     )
     sns.despine(left=True, bottom=True)
     plt.savefig("figures/figure2_secular_eq.pdf")

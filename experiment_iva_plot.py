@@ -62,8 +62,8 @@ leg_space = 1.6  # cm
 figsize = (fig_width * cm2in, fig_height * cm2in)
 
 # criteria for convergence of cost function
-cost_eps_convergence = 1e-2
-isr_eps_convergence = 1e-2
+cost_eps_convergence = 1e-4
+isr_eps_convergence = 1e-1
 fig_width_cost = 8.5
 fig_heigh_cost = 4
 figsize_cost = (fig_width_cost * cm2in, fig_heigh_cost * cm2in)
@@ -524,8 +524,9 @@ def make_table_cost(config, arg_isr_tables, arg_cost_tables, with_pca=True):
 
             # Cost
             table = cost_tables[ip][algo]
-            dtable = -np.diff(table, axis=1)
-            dtable /= np.abs(table[:, :1])
+            num_table = np.abs(np.diff(table, axis=1))
+            denom_table = np.abs(table[:, 1:] - table[:, :1])
+            dtable = num_table / denom_table
             converge_epoch = []
             for r in range(dtable.shape[0]):
                 S = np.where((dtable[r] >= 0) & (dtable[r] < cost_eps_convergence))[0]
@@ -539,10 +540,10 @@ def make_table_cost(config, arg_isr_tables, arg_cost_tables, with_pca=True):
 
             # ISR
             table = isr_tables[ip][algo]
-            dtable = -np.diff(table, axis=1)
+            dtable = np.abs(np.diff(table, axis=1))
             converge_epoch_isr = []
             for r in range(dtable.shape[0]):
-                S = np.where((dtable[r] >= 0) & (dtable[r] < isr_eps_convergence))[0]
+                S = np.where(dtable[r] < isr_eps_convergence)[0]
                 if len(S) == 0:
                     converge_epoch_isr.append(len(dtable[r]))
                 else:
@@ -619,7 +620,6 @@ if __name__ == "__main__":
     for pca in [True]:
         pca_str = "_pca" if pca else ""
 
-        """
         # create the ISR plots
         fig, axes = make_plot_isr(config, isr_tables, cost_tables, with_pca=pca)
         filename = figure_dir / (args.data.stem + f"_isr{pca_str}.pdf")
@@ -629,21 +629,8 @@ if __name__ == "__main__":
         fig, axes = make_figure_cost(config, isr_tables, cost_tables, with_pca=pca)
         filename = figure_dir / (args.data.stem + f"_cost{pca_str}.pdf")
         fig.savefig(filename)
-        """
 
         # compute the values for the cost function
         tables = make_table_cost(config, isr_tables, cost_tables, with_pca=pca)
-
-    plt.show()
-
-    """
-    for p, isr, cost in zip(config["params"], isr_tables, cost_tables):
-        fig, axes = make_plot(config, p, isr, cost)
-        pca_str = "_pca" if p["pca"] else ""
-        filename = figure_dir / (
-            args.data.stem + f"_f{p['n_freq']}_c{p['n_chan']}{pca_str}.pdf"
-        )
-        fig.savefig(filename)
-    """
 
     plt.show()

@@ -29,7 +29,7 @@ if __name__ == "__main__":
     dirs = args.dirs
     pickle = args.pickle
 
-    df, conv_tbl, rt60, parameters = load_data(args.dirs, pickle=pickle)
+    df, final_val_tbl, conv_tbl, rt60, parameters = load_data(args.dirs, pickle=pickle)
 
     col_order = [
         "AuxIVA-IP (PCA)",
@@ -38,7 +38,7 @@ if __name__ == "__main__":
         "AuxIVA-IPA (PCA)",
     ]
 
-    agg_func = np.mean
+    agg_func = np.median
 
     print("Runtime Table:")
     pt_rt = conv_tbl.pivot_table(

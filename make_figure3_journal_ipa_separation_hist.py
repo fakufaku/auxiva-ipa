@@ -78,7 +78,12 @@ if __name__ == "__main__":
     plot_flag = cli_args.show
     pickle_flag = cli_args.pickle
 
-    df, conv_tbl, rt60, parameters = load_data(cli_args.dirs, pickle=pickle_flag)
+    df_all_iters, final_val_tbl, conv_tbl, rt60, parameters = load_data(
+        cli_args.dirs, pickle=pickle_flag
+    )
+
+    # in this script, we only care about the final values
+    df = final_val_tbl
 
     # Draw the figure
     print("Plotting...")
@@ -149,20 +154,22 @@ if __name__ == "__main__":
     }
 
     # width = aspect * height
-    aspect = 3 / 2  # width / height
-    height = half_width / 3
+    aspect = 1.2  # width / height
+    height = (half_width / 2) / aspect
     # height = 1.6
 
     iteration_index = 12
     n_interferers = 0
+
+    # first we need to pair the algorithm with their maximum number of iterations
 
     for m_name in the_metrics.keys():
 
         metric = the_metrics[m_name]
 
         select = (
-            np.logical_or(df_melt["Iteration"] == 100, df_melt["Iteration"] == 2000)
-            & (df_melt["Interferers"] == n_interferers)
+            # np.logical_or(df_melt["Iteration"] == 100, df_melt["Iteration"] == 2000) &
+            (df_melt["Interferers"] == n_interferers)
             & df_melt.metric.isin(metric)
         )
 
