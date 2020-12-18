@@ -317,4 +317,6 @@ if __name__ == "__main__":
     dirs = args.dirs
     pickle = args.pickle
 
-    df, conv_tbl, rt60, parameters = load_data(args.dirs, pickle=pickle)
+    df, final_value_tbl, conv_tbl, rt60, parameters = load_data(
+        args.dirs, pickle=pickle
+    )

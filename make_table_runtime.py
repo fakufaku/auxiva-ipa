@@ -39,19 +39,27 @@ if __name__ == "__main__":
     ]
 
     agg_func = np.median
+    flt_fmt = "%.1f"
 
     print("Runtime Table:")
     pt_rt = conv_tbl.pivot_table(
-        index=["SINR", "Mics"], columns=["Algorithm"], aggfunc=agg_func
+        index=["Mics"], columns=["SINR", "Algorithm"], aggfunc=agg_func
     )["Runtime"]
-    pt_rt = pt_rt.reindex(columns=col_order)
-    print(pt_rt.to_latex(float_format="%.2f"))
+    pt_rt = pt_rt.reindex(level=1, columns=col_order)
+    print(pt_rt.to_latex(float_format=flt_fmt))
+
+    print()
+
+    print("Speed-up Factors:")
+    for snr in [5, 15, 25]:
+        print(f"SNR {snr}")
+        print(pt_rt[snr].div(pt_rt[snr, "AuxIVA-IPA (PCA)"], axis=0))
 
     print()
 
     print("Iteration Table Table:")
     pt_it = conv_tbl.pivot_table(
-        index=["SINR", "Mics"], columns=["Algorithm"], aggfunc=agg_func
+        index=["Mics"], columns=["SINR", "Algorithm"], aggfunc=agg_func
     )["Iterations"]
-    pt_it = pt_it.reindex(columns=col_order)
-    print(pt_it.to_latex(float_format="%.2f"))
+    pt_it = pt_it.reindex(level=1, columns=col_order)
+    print(pt_it.to_latex(float_format="%.0f"))
