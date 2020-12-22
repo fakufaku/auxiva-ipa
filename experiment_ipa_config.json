@@ -2,7 +2,7 @@
   "name": "speed_contest_journal_ipa",
 
   "seed": 12345,
-  "repeat": 300,
+  "repeat": 1000,
   "sinr": [5, 15, 25],
   "n_targets": "determined",
   "n_interferers": [0],
