@@ -34,15 +34,9 @@ import seaborn as sns
 from matplotlib.ticker import MaxNLocator
 
 from data_loader import load_data
+from plot_config import seaborn_config
 
 matplotlib.rc("pdf", fonttype=42)
-
-
-def seaborn_config(n_colors):
-    sns.set_theme(
-        context="paper", style="whitegrid", font="sans-serif", font_scale=0.75
-    )
-    sns.set_palette("viridis", n_colors=7)
 
 
 if __name__ == "__main__":
@@ -119,7 +113,7 @@ if __name__ == "__main__":
         "AuxIVA-IPA" + pca_str,
     ]
 
-    seaborn_config(n_colors=len(all_algos))
+    seaborn_config(n_colors=len(all_algos), style="whitegrid")
 
     if not os.path.exists("figures"):
         os.mkdir("figures")

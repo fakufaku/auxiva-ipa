@@ -11,6 +11,8 @@ import pandas as pd
 import seaborn as sns
 from matplotlib import rcParams
 
+from plot_config import seaborn_config
+
 ### CONFIG ###
 figure_dir = Path("./figures")
 
@@ -32,11 +34,6 @@ methods_order = [
 ### END CONFIG ###
 
 rcParams["ytick.major.pad"] = "0"
-
-
-def seaborn_config(n_colors):
-    sns.set_theme(context="paper", style="white", font="sans-serif", font_scale=0.75)
-    sns.set_palette("viridis", n_colors=7)
 
 
 def make_figure(
@@ -179,6 +176,7 @@ if __name__ == "__main__":
         description="Plots the result of the HEAD experiment with synthetic data"
     )
     parser.add_argument("data", type=Path, help="Path to simulation data")
+    parser.add_argument("--show", action="store_true", help="Show figure")
     args = parser.parse_args()
 
     data = np.load(args.data, allow_pickle=True)
@@ -202,4 +200,5 @@ if __name__ == "__main__":
     # create the table
     df = make_table(data, config, methods, infos, runtimes)
 
-    plt.show()
+    if args.show:
+        plt.show()
