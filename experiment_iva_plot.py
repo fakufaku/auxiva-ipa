@@ -49,7 +49,7 @@ include_algos_cost = [
 ]
 
 
-fail_thresh = -30.0
+fail_thresh = -10.0
 
 # number of bins for histogram
 n_bins = 30
@@ -616,10 +616,9 @@ if __name__ == "__main__":
 
     os.makedirs(figure_dir, exist_ok=True)
 
-    for pca in [True]:
+    for pca in [False, True]:
         pca_str = "_pca" if pca else ""
 
-        """
         # create the ISR plots
         fig, axes = make_plot_isr(config, isr_tables, cost_tables, with_pca=pca)
         filename = figure_dir / (args.data.stem + f"_isr{pca_str}.pdf")
@@ -629,14 +628,12 @@ if __name__ == "__main__":
         fig, axes = make_figure_cost(config, isr_tables, cost_tables, with_pca=pca)
         filename = figure_dir / (args.data.stem + f"_cost{pca_str}.pdf")
         fig.savefig(filename)
-        """
 
         # compute the values for the cost function
         tables = make_table_cost(config, isr_tables, cost_tables, with_pca=pca)
 
     plt.show()
 
-    """
     for p, isr, cost in zip(config["params"], isr_tables, cost_tables):
         fig, axes = make_plot(config, p, isr, cost)
         pca_str = "_pca" if p["pca"] else ""
@@ -644,6 +641,5 @@ if __name__ == "__main__":
             args.data.stem + f"_f{p['n_freq']}_c{p['n_chan']}{pca_str}.pdf"
         )
         fig.savefig(filename)
-    """
 
     plt.show()

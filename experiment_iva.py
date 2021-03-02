@@ -8,6 +8,13 @@ import numpy as np
 from scipy.optimize import linear_sum_assignment
 
 import bss
+# --- HACK ---
+# fix the implementation of auxiva-iss used
+# to allow monitoring of ISR
+from bss.overiva import auxiva_iss
+
+bss.algos["auxiva-iss"] = auxiva_iss
+# --- END HACK ---
 
 config = {
     "master_seed": 8856641,
@@ -42,66 +49,23 @@ config = {
 }
 
 
-def separation_error(est, mix, ref, ref_ch=0):
-
-    # fix scale
-    est_hat = bss.project_back(est.transpose([2, 0, 1]), mix[:, ref_ch, :].T).transpose(
-        [1, 2, 0]
-    )
-
-    # compute the error matrix
-    err_mat = np.mean(
-        np.abs(est_hat[:, None, :, :] - ref[:, :, None, :]) ** 2, axis=(0, 3)
-    )
-
-    # now find the best permutation
-    r, c = linear_sum_assignment(err_mat)
-    error = np.mean(err_mat[r, c])
-
-    return error, c, est_hat[:, c, :]
-
-
-def scale_permute(W, A):
-
-    eye = np.eye(W.shape[-1])
-
-    P = W @ A
-    W = W.copy()
-
-    # fix the scale by setting the largest element in each row to 1
-    scale = np.max(np.abs(P), axis=-1, keepdims=True)
-    W /= scale
-    P /= scale
-
-    # now find the permutation
-    err_mat = np.mean(
-        np.abs(eye[None, :, None, :] - np.abs(P[:, None, :, :])) ** 2, axis=(0, 3)
-    )
-    _, perm = linear_sum_assignment(err_mat)
-
-    # fix the permutation
-    W = W[:, perm, :]
-    P = P[:, perm, :]
-
-    return W, P
-
-
 def ISR(W, A):
 
     n_freq, n_chan, _ = W.shape
 
-    # restore scale and permutation
-    W, P = scale_permute(W, A)
+    isr = np.zeros(W.shape[1:])
 
-    isr = np.zeros(W.shape)
+    for m in range(n_chan):
+        B = np.abs(W[:, [m], :] @ A)  # shape: (n_freq, 1, n_chan)
+        for m_prime in range(n_chan):
+            isr[m, m_prime] = np.mean(
+                np.delete(B[:, 0, :], m_prime, axis=1) / B[:, 0, [m_prime]]
+            )
 
-    for r in range(n_chan):
-        for c in range(n_chan):
-            if r == c:
-                continue
-            isr[:, r, c] = np.abs(P[:, r, c]) ** 2 / np.abs(P[:, r, r]) ** 2
+    rows, perm = linear_sum_assignment(isr)
+    isr_opt = np.mean(isr[rows, perm])
 
-    return 10 * np.log10(np.mean(isr))
+    return 10 * np.log10(isr_opt)
 
 
 def one_loop(args):
