@@ -95,7 +95,7 @@ def make_figure(
             axes[1, c].set_xlabel("Iteration")
             if c == 0:
                 axes[0, c].set_ylabel("SeDJoCo Residual")
-                axes[1, c].set_ylabel("SeDJoCo Cost")
+                axes[1, c].set_ylabel("Surrogate Cost")
 
             # keep track of the legend
             handles, labels = axes[0, c].get_legend_handles_labels()

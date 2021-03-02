@@ -152,7 +152,8 @@ def fastiva(
         # symmetric decorrelation
         WHW = tensor_H(W) @ W
         WHW = 0.5 * (WHW + tensor_H(WHW))
-        L = np.linalg.cholesky(np.linalg.inv(WHW))
+        e_val, e_vec = np.linalg.eigh(WHW)
+        L = (e_vec * np.reciprocal(np.maximum(np.sqrt(e_val[:, None, :]), 1e-15))) @ tensor_H(e_vec)
         np.matmul(W, L, out=W)
 
         # Update the output signal
