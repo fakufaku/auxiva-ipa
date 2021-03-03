@@ -287,9 +287,9 @@ if __name__ == "__main__":
         callback_checkpoints = [1]
     else:
         if bss.is_dual_update[args.algo]:
-            callback_checkpoints = list(range(2, n_iter + 1, 2))
+            callback_checkpoints = list(range(0, n_iter + 1, 2))
         else:
-            callback_checkpoints = list(range(1, n_iter + 1))
+            callback_checkpoints = list(range(0, n_iter + 1))
 
     if args.no_cb:
         callback_checkpoints = [1]
@@ -306,7 +306,7 @@ if __name__ == "__main__":
     tic = time.perf_counter()
 
     # First evaluation of SDR/SIR
-    cb_local(X_mics[:, :, :n_sources_target], args.dist)
+    # cb_local(X_mics[:, :, :n_sources_target], args.dist)
 
     Y, W = bss.separate(
         X_mics,
@@ -370,7 +370,7 @@ if __name__ == "__main__":
     plt.tight_layout(pad=0.5)
 
     plt.figure()
-    plt.plot([0] + callback_checkpoints, cost_list)
+    plt.plot(callback_checkpoints, cost_list)
     plt.title("Cost function")
     plt.xlabel("Iteration")
     plt.ylabel("Cost")
@@ -378,8 +378,8 @@ if __name__ == "__main__":
 
     plt.figure()
     for s in range(n_sources_target):
-        plt.plot([0] + callback_checkpoints, SDR[:, s], label=f"SDR {s+1}", marker="*")
-        plt.plot([0] + callback_checkpoints, SIR[:, s], label=f"SIR {s+1}", marker="o")
+        plt.plot(callback_checkpoints, SDR[:, s], label=f"SDR {s+1}", marker="*")
+        plt.plot(callback_checkpoints, SIR[:, s], label=f"SIR {s+1}", marker="o")
     plt.title(args.algo)
     plt.legend()
     plt.tight_layout(pad=0.5)

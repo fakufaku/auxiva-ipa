@@ -114,15 +114,15 @@ def fastiva(
     W[:] = np.eye(n_chan)[None, ...]
     Y = X.copy()
 
-    for epoch in range(n_iter):
-
-        # update the demixing matrix
-        if model == "laplace":
-            score = score_laplace(Y)
-        elif model == "gauss":
-            score = score_gauss(Y)
+    # Monitor the algorithm progression
+    if callback is not None and 0 in callback_checkpoints:
+        Y_tmp = Y.transpose([2, 0, 1])
+        if "eval_demix_mat" in kwargs:
+            callback(Y_tmp.copy(), W, model)
         else:
-            raise NotImplementedError()
+            callback(Y_tmp.copy(), model)
+
+    for epoch in range(n_iter):
 
         # fixed-point update equations
         # shape: (n_freq, n_frames)
@@ -166,7 +166,7 @@ def fastiva(
             if "eval_demix_mat" in kwargs:
                 callback(Y_tmp.copy(), W @ Q_H_inv, model)
             else:
-                callback(Y_tmp, model)
+                callback(Y_tmp.copy(), model)
 
     Y = Y.transpose([2, 0, 1]).copy()
 

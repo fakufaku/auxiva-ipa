@@ -36,6 +36,7 @@ if __name__ == "__main__":
         "AuxIVA-ISS (PCA)",
         "AuxIVA-IP2 (PCA)",
         "AuxIVA-IPA (PCA)",
+        "FastIVA (PCA)",
     ]
 
     agg_func = np.median
