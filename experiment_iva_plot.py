@@ -9,6 +9,7 @@ import pandas as pd
 import seaborn as sns
 
 import bss
+from plot_config import seaborn_config
 
 ### CONFIG ###
 figure_dir = Path("./figures")
@@ -70,11 +71,6 @@ figsize_cost = (fig_width_cost * cm2in, fig_heigh_cost * cm2in)
 ### END CONFIG ###
 
 
-def seaborn_config(n_colors):
-    sns.set_theme(context="paper", style="white", font="sans-serif", font_scale=0.75)
-    sns.set_palette("viridis", n_colors=7)
-
-
 def make_plot(config, params, isr_tables, cost_tables, filename=None):
 
     # expand some parameters
@@ -83,7 +79,7 @@ def make_plot(config, params, isr_tables, cost_tables, filename=None):
     pca = params["pca"]
 
     # construct the mosaic
-    n_algos = len(config["algos"])
+    n_algos = len(include_algos)
     assert 2 * n_algos + 2 <= len(ascii_letters)
     mosaic_array = [[ascii_letters[0] * n_algos], [ascii_letters[1] * n_algos]]
     for b in range(2):
@@ -608,6 +604,7 @@ if __name__ == "__main__":
         description="Plots the result of the IVA experiment with synthetic data"
     )
     parser.add_argument("data", type=Path, help="Path to simulation data")
+    parser.add_argument("--show", action="store_true", help="Show figure")
     args = parser.parse_args()
 
     data = np.load(args.data, allow_pickle=True)
@@ -633,8 +630,6 @@ if __name__ == "__main__":
         # compute the values for the cost function
         tables = make_table_cost(config, isr_tables, cost_tables, with_pca=pca)
 
-    plt.show()
-
     for p, isr, cost in zip(config["params"], isr_tables, cost_tables):
         fig, axes = make_plot(config, p, isr, cost)
         pca_str = "_pca" if p["pca"] else ""
@@ -643,4 +638,5 @@ if __name__ == "__main__":
         )
         fig.savefig(filename)
 
-    plt.show()
+    if args.show:
+        plt.show()
