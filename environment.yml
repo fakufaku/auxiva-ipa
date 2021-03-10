@@ -16,3 +16,4 @@ dependencies:
     - samplerate
     - mir_eval
     - sounddevice
+    - colorspacious

@@ -20,10 +20,13 @@
 """
 A few routines to generate random data
 """
+from typing import Optional, Tuple
+
 import numpy as np
-from scipy.stats import cauchy, expon
+from scipy.stats import cauchy, expon, gamma
 
 from .utils import iscomplex, tensor_H
+
 
 def crandn(*shape, dtype=np.complex128):
     """ wrapper for numpy.random.randn that can produce complex numbers """
@@ -47,7 +50,9 @@ def rand_psd(*shape, inner=None, dtype=np.complex):
     return 0.5 * (V + tensor_H(V))
 
 
-def circular_symmetric(loc=0, scale=1.0, dim=1, size=None, distrib="laplace", dtype=np.complex128):
+def circular_symmetric(
+    loc=0, scale=1.0, dim=1, size=None, distrib="laplace", dtype=np.complex128
+):
 
     if size is None:
         size = [1]
@@ -60,8 +65,15 @@ def circular_symmetric(loc=0, scale=1.0, dim=1, size=None, distrib="laplace", dt
 
     # generate the norms according to exponential distribution
     if distrib == "laplace":
-        norms = expon.rvs(loc=loc, scale=scale, size=size)
+        # the marginal of the norm of symmetric circularl Laplace distributed
+        # vectors is a gamma random variable with shape=dim and scale=1
+        if dtype in [np.complex128, np.complex64]:
+            a = 2 * dim
+        else:
+            a = dim
+        norms = gamma.rvs(a, size=size)
     elif distrib == "gauss":
+        raise NotImplementedError
         norms = cauchy.rvs(loc=loc, scale=scale, size=size)
     else:
         raise NotImplementedError()
@@ -70,10 +82,24 @@ def circular_symmetric(loc=0, scale=1.0, dim=1, size=None, distrib="laplace", dt
 
     return out
 
-def rand_mixture(n_freq, n_sources, n_frames, distrib="laplace", scale=1.0, dtype=np.complex128):
+
+def rand_mixture(
+    n_freq: int,
+    n_sources: int,
+    n_frames: int,
+    distrib: Optional[str] = "laplace",
+    scale: Optional[float] = 1.0,
+    dtype: Optional[np.dtype] = np.complex128,
+    ) -> Tuple[np.array, np.array, np.array]:
 
     A = crandn(n_freq, n_sources, n_sources, dtype=dtype)
-    groundtruths = circular_symmetric(dim=n_freq, size=(n_sources, n_frames), distrib=distrib, scale=scale, dtype=dtype)
+    groundtruths = circular_symmetric(
+        dim=n_freq,
+        size=(n_sources, n_frames),
+        distrib=distrib,
+        scale=scale,
+        dtype=dtype,
+    )
     mixtures = A @ groundtruths
 
     return mixtures, groundtruths, A

@@ -20,31 +20,33 @@ config = {
     "master_seed": 8856641,
     "n_repeat": 1000,
     "params": [
+        # {"n_freq": 5, "n_chan": 3, "pca": True},
         {"n_freq": 6, "n_chan": 4, "pca": True},
         {"n_freq": 6, "n_chan": 6, "pca": True},
         {"n_freq": 6, "n_chan": 8, "pca": True},
-        {"n_freq": 6, "n_chan": 4, "pca": False},
-        {"n_freq": 6, "n_chan": 6, "pca": False},
-        {"n_freq": 6, "n_chan": 8, "pca": False},
+        # {"n_freq": 5, "n_chan": 3, "pca": False},
+        # {"n_freq": 6, "n_chan": 4, "pca": False},
+        # {"n_freq": 6, "n_chan": 6, "pca": False},
+        # {"n_freq": 6, "n_chan": 8, "pca": False},
     ],
     "n_frames": 5000,
     "distrib": "laplace",
     "algos": {
-        "iva-ng-0.3": {"algo": "iva-ng", "kwargs": {"step_size": 0.3, "n_iter": 100}},
-        "fastiva": {"algo": "fastiva", "kwargs": {"n_iter": 100}},
-        "auxiva": {"algo": "auxiva", "kwargs": {"n_iter": 100}},
-        "auxiva2": {"algo": "auxiva2", "kwargs": {"n_iter": 100}},
-        "auxiva-iss": {"algo": "auxiva-iss", "kwargs": {"n_iter": 100}},
-        "auxiva-ipa": {"algo": "auxiva-ipa", "kwargs": {"n_iter": 100}},
-        "auxiva-ipa2": {"algo": "auxiva-ipa2", "kwargs": {"n_iter": 100}},
+        "iva-ng-0.3": {"algo": "iva-ng", "kwargs": {"step_size": 0.3, "n_iter": 1000}},
+        "fastiva": {"algo": "fastiva", "kwargs": {"n_iter": 1000}},
+        "auxiva": {"algo": "auxiva", "kwargs": {"n_iter": 1000}},
+        "auxiva2": {"algo": "auxiva2", "kwargs": {"n_iter": 1000}},
+        "auxiva-iss": {"algo": "auxiva-iss", "kwargs": {"n_iter": 1000}},
+        "auxiva-ipa": {"algo": "auxiva-ipa", "kwargs": {"n_iter": 1000}},
+        # "auxiva-ipa2": {"algo": "auxiva-ipa2", "kwargs": {"n_iter": 300}},
         "auxiva-fullhead_1e-5": {
             "algo": "auxiva-fullhead",
-            "kwargs": {"tol": 1e-5, "n_iter": 100},
+            "kwargs": {"tol": 1e-5, "n_iter": 1000},
         },
-        "auxiva-fullhead_1e-10": {
-            "algo": "auxiva-fullhead",
-            "kwargs": {"tol": 1e-10, "n_iter": 100},
-        },
+        # "auxiva-fullhead_1e-10": {
+        #     "algo": "auxiva-fullhead",
+        #     "kwargs": {"tol": 1e-10, "n_iter": 100},
+        # },
     },
 }
 
@@ -56,7 +58,7 @@ def ISR(W, A):
     isr = np.zeros(W.shape[1:])
 
     for m in range(n_chan):
-        B = np.abs(W[:, [m], :] @ A)  # shape: (n_freq, 1, n_chan)
+        B = np.abs(W[:, [m], :] @ A) ** 2  # shape: (n_freq, 1, n_chan)
         for m_prime in range(n_chan):
             isr[m, m_prime] = np.mean(
                 np.delete(B[:, 0, :], m_prime, axis=1) / B[:, 0, [m_prime]]
@@ -98,8 +100,18 @@ def one_loop(args):
         demix_init = np.zeros((n_freq, n_chan, n_chan), dtype=mix.dtype)
         demix_init[:] = eye
 
+        # initialization close to groundtruth
+        # demix_init = np.linalg.inv(mix_mat) + bss.random.crandn(*mix_mat.shape) * 1e-1
+        # Y_init = (demix_init @ mix).transpose([2, 0, 1])
+
     isr = {}
     cost = {}
+
+    """
+    import pdb
+
+    pdb.set_trace()
+    """
 
     for algo, pmt in algos.items():
 

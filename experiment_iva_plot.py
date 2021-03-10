@@ -53,7 +53,7 @@ include_algos_cost = [
 fail_thresh = -10.0
 
 # number of bins for histogram
-n_bins = 30
+n_bins = 60
 
 # figure size
 cm2in = 0.39
@@ -63,12 +63,14 @@ leg_space = 1.6  # cm
 figsize = (fig_width * cm2in, fig_height * cm2in)
 
 # criteria for convergence of cost function
-cost_eps_convergence = 1e-4
-isr_eps_convergence = 1e-1
+cost_eps_convergence = 1e-6
+isr_eps_convergence = 1e-3
 fig_width_cost = 8.5
 fig_heigh_cost = 4
 figsize_cost = (fig_width_cost * cm2in, fig_heigh_cost * cm2in)
 ### END CONFIG ###
+
+ascii_letters = ascii_letters + "1234567890*#/!?$,[;:"
 
 
 def make_plot(config, params, isr_tables, cost_tables, filename=None):
@@ -182,24 +184,34 @@ def make_plot_isr(config, arg_isr_tables, arg_cost_tables, with_pca=True):
     params = []
     isr_tables = []
     cost_tables = []
+    n_algos = 0
     for p, isr, cost in zip(config["params"], arg_isr_tables, arg_cost_tables):
         if p["pca"] != with_pca:
             continue
         params.append(p)
-        isr_tables.append(isr)
         cost_tables.append(cost)
 
+        isr_tables.append({})
+        n_algos = 0
+        for alg_name, alg_dict in isr.items():
+            if alg_name in include_algos:
+                isr_tables[-1][alg_name] = alg_dict
+                n_algos += 1
+
     # pick the algorithms to include
+    """
+    new_isr_tables = {}
     for sub_dict in isr_tables:
         n_algos = 0
         rm_list = []
-        for algo in sub_dict:
+        for algo, d in sub_dict:
             if algo not in include_algos:
                 rm_list.append(algo)
             else:
                 n_algos += 1
         for a in rm_list:
             sub_dict.pop(a)
+    """
 
     # construct the mosaic
     # n_algos = len(include_algos)
@@ -222,7 +234,8 @@ def make_plot_isr(config, arg_isr_tables, arg_cost_tables, with_pca=True):
     seaborn_config(n_algos)
 
     # create the figure
-    fig, axes = plt.subplot_mosaic(mosaic, figsize=figsize)
+    fig_size = (figsize[0], figsize[1] * len(params) / 3)
+    fig, axes = plt.subplot_mosaic(mosaic, figsize=fig_size)
 
     # container for some info we will fill as we go
     leg_handles = {}
@@ -313,11 +326,11 @@ def make_plot_isr(config, arg_isr_tables, arg_cost_tables, with_pca=True):
 
         # set the x/y-axis limit for all histograms
         if ip == n_rows - 1:
-            axes[mos_map[ip][0]].set_xticks([1, 10, 100])
-            axes[mos_map[ip][0]].set_xlim([0.9, 100])
+            axes[mos_map[ip][0]].set_xticks([1, 10, 100, 1000])
+            axes[mos_map[ip][0]].set_xlim([0.9, 1000])
         else:
             axes[mos_map[ip][0]].set_xticks([])
-            axes[mos_map[ip][0]].set_xlim([0.9, 100])
+            axes[mos_map[ip][0]].set_xlim([0.9, 1000])
 
         axes[mos_map[ip][0]].set_ylim(y_lim_isr)
         for i, algo in enumerate(include_algos):
@@ -344,7 +357,7 @@ def make_plot_isr(config, arg_isr_tables, arg_cost_tables, with_pca=True):
                 f"{100 * p:4.1f}%", pts, fontsize="x-small", ha="left"
             )
             # failure
-            pts = [0.25 * x_lim_hist_isr[1], y_f + 4.0]
+            pts = [0.25 * x_lim_hist_isr[1], min(y_f + 4.0, y_lim_isr[1] - 1.0)]
             axes[mos_map[ip][i + 1]].annotate(
                 f"{100 * (1 - p):4.1f}%", pts, fontsize="x-small", ha="left"
             )
@@ -383,9 +396,16 @@ def make_figure_cost(config, arg_isr_tables, arg_cost_tables, with_pca=True):
         if p["pca"] != with_pca:
             continue
         params.append(p)
-        isr_tables.append(isr)
         cost_tables.append(cost)
 
+        isr_tables.append({})
+        n_algos = 0
+        for alg_name, alg_dict in isr.items():
+            if alg_name in include_algos:
+                isr_tables[-1][alg_name] = alg_dict
+                n_algos += 1
+
+    """
     # pick the algorithms to include
     for sub_dict in isr_tables:
         n_algos = 0
@@ -397,6 +417,7 @@ def make_figure_cost(config, arg_isr_tables, arg_cost_tables, with_pca=True):
                 n_algos += 1
         for a in rm_list:
             sub_dict.pop(a)
+    """
 
     results = []
 
@@ -587,6 +608,10 @@ def make_table_cost(config, arg_isr_tables, arg_cost_tables, with_pca=True):
 
     # print the stuff
     print("---===---")
+    if with_pca:
+        print("[with PCA]")
+    else:
+        print("[without PCA]")
     print("Median epoch (ISR+Cost)")
     print()
     print(df_loc)
@@ -614,7 +639,7 @@ if __name__ == "__main__":
 
     os.makedirs(figure_dir, exist_ok=True)
 
-    for pca in [False, True]:
+    for pca in [True]:
         pca_str = "_pca" if pca else ""
 
         # create the ISR plots

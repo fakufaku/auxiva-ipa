@@ -95,7 +95,7 @@ def fastiva(
 
     # We will need the inverse square root of Cx
     e_val, e_vec = np.linalg.eigh(Cx)
-    Q_H_inv = (1.0 / np.sqrt(e_val[:, :, None])) * tensor_H(e_vec)
+    Q_H_inv = e_vec @ ((1.0 / np.sqrt(e_val[:, :, None])) * tensor_H(e_vec))
     # Q_H = e_vec[:, :, :] * np.sqrt(e_val[:, None, :])
 
     eps = 1e-10
