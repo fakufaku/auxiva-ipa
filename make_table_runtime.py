@@ -6,6 +6,16 @@ import numpy as np
 
 from data_loader import load_data
 
+substitutions = {
+    "Algorithm": {
+        "AuxIVA-IP (PCA)": "IP",
+        "AuxIVA-ISS (PCA)": "ISS",
+        "AuxIVA-IP2 (PCA)": "IP2",
+        "AuxIVA-IPA (PCA)": "IPA",
+        "FastIVA (PCA)": "FIVA",
+    }
+}
+
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(
@@ -31,12 +41,14 @@ if __name__ == "__main__":
 
     df, final_val_tbl, conv_tbl, rt60, parameters = load_data(args.dirs, pickle=pickle)
 
+    conv_tbl = conv_tbl.replace(substitutions)
+
     col_order = [
-        "AuxIVA-IP (PCA)",
-        "AuxIVA-ISS (PCA)",
-        "AuxIVA-IP2 (PCA)",
-        "AuxIVA-IPA (PCA)",
-        "FastIVA (PCA)",
+        "IP",
+        "ISS",
+        "IP2",
+        "IPA",
+        "FIVA",
     ]
 
     agg_func = np.median
@@ -54,7 +66,7 @@ if __name__ == "__main__":
     print("Speed-up Factors:")
     for snr in [5, 15, 25]:
         print(f"SNR {snr}")
-        print(pt_rt[snr].div(pt_rt[snr, "AuxIVA-IPA (PCA)"], axis=0))
+        print(pt_rt[snr].div(pt_rt[snr, "IPA"], axis=0))
 
     print()
 

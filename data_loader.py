@@ -29,6 +29,7 @@ import numpy as np
 import pandas as pd
 
 threshold_convergence = 1e-4
+threshold_convergence_one_step = 1e-0
 
 # This table maps some of the labels we used in the
 # simulation to labels we would like to use in the figures
@@ -206,9 +207,17 @@ def load_data(dirs, pickle=False):
                 progress_one_step = cost - cost_interp[-1]
                 progress_total = cost - cost_init
 
+                """
                 if (
                     np.abs(progress_one_step) / np.abs(progress_total)
                     < threshold_convergence
+                ):
+                    converged_iter = n_iter
+                    break
+                """
+                if (
+                    progress_one_step
+                    < record["n_mics"] * threshold_convergence_one_step
                 ):
                     converged_iter = n_iter
                     break

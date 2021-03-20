@@ -57,9 +57,34 @@ def seaborn_config(n_colors, style="white", font="sans-serif", font_scale=0.75):
     # pal = sns.color_palette("cubehelix", n_colors=n_colors)
     # sns.set_palette("viridis", n_colors=7)
     # sns.set_palette(pal, n_colors=n_colors)
-    sns.set_palette(
-        color_palette2(n_colors=n_colors, hue_offset=0.11, chroma=0.5, max_lum=0.8)
-    )
+
+    pal = color_palette2(n_colors=n_colors, hue_offset=0.11, chroma=0.5, max_lum=0.8)
+
+    # colorblind friendly color palette
+    # https://gist.github.com/thriveth/8560036
+    if n_colors == 6:
+        pal = [
+            "#6494aa",
+            "#a63d40",
+            "#90a959",
+            "#e9b872",
+            "#6CA9B2",
+            "#333333",
+        ]
+    elif n_colors == 7:
+        pal = [
+            "#6494aa",
+            "#a63d40",
+            "#90a959",
+            "#e9b872",
+            "#6CA9B2",
+            "#333333",
+            "#a9ddd6",
+        ]
+    else:
+        raise NotImplementedError
+
+    sns.set_palette(pal)
 
 
 if __name__ == "__main__":

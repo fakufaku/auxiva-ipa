@@ -459,9 +459,9 @@ def overiva(
                 V[i] = 0.5 * (vv + tensor_H(vv))
 
             # now solve head
-            tol = 1e-1 if "tol" not in kwargs else kwargs["tol"]
+            tol = 1e-20 if "tol" not in kwargs else kwargs["tol"]
             W[:], info = head_solver(
-                V.swapaxes(0, 1), W=W, method=HEADUpdate.IPA_NCG, tol=tol, info=True
+                V.swapaxes(0, 1), W=W, method=HEADUpdate.IPA, tol=tol, info=True
             )
 
             demix(Y, X, W[:, :n_src, :])

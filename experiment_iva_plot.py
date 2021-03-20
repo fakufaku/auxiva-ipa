@@ -63,8 +63,8 @@ leg_space = 1.6  # cm
 figsize = (fig_width * cm2in, fig_height * cm2in)
 
 # criteria for convergence of cost function
-cost_eps_convergence = 1e-6
-isr_eps_convergence = 1e-3
+cost_eps_convergence = 1e-3
+isr_eps_convergence = 1e-1
 fig_width_cost = 8.5
 fig_heigh_cost = 4
 figsize_cost = (fig_width_cost * cm2in, fig_heigh_cost * cm2in)
@@ -365,7 +365,7 @@ def make_plot_isr(config, arg_isr_tables, arg_cost_tables, with_pca=True):
         axes[mos_map[ip][0]].set_title(f"$F={n_freq}$ $M={n_chan}$")
         axes[mos_map[ip][0]].set_ylabel("ISR [dB]")
 
-    axes[mos_map[0][0]].annotate("SeDJoCo/IPA overlap", [1, -52], fontsize="xx-small")
+    axes[mos_map[0][0]].annotate("IP/ISS overlap", [1, -28], fontsize="xx-small")
     axes[mos_map[-1][0]].set_xlabel("Iteration")
 
     fig.tight_layout(pad=0.1, w_pad=0.2, h_pad=1)
@@ -438,9 +438,18 @@ def make_figure_cost(config, arg_isr_tables, arg_cost_tables, with_pca=True):
         [-400000, y_lim_up],
     ]
     ticklabels = [
-        ["$-2 x 10^5$", "$-10^5$",],
-        ["$-3 x 10^5$", "$-10^5$",],
-        ["$-4 x 10^5$", "$-10^5$",],
+        [
+            "$-2 x 10^5$",
+            "$-10^5$",
+        ],
+        [
+            "$-3 x 10^5$",
+            "$-10^5$",
+        ],
+        [
+            "$-4 x 10^5$",
+            "$-10^5$",
+        ],
     ]
 
     for ip, pmt in enumerate(params):
@@ -543,14 +552,16 @@ def make_table_cost(config, arg_isr_tables, arg_cost_tables, with_pca=True):
             table = cost_tables[ip][algo]
             num_table = np.abs(np.diff(table, axis=1))
             denom_table = np.abs(table[:, 1:] - table[:, :1])
+            denom_table = 1
             dtable = num_table / denom_table
             converge_epoch = []
             for r in range(dtable.shape[0]):
-                S = np.where((dtable[r] >= 0) & (dtable[r] < cost_eps_convergence))[0]
+                # find first step from the back which is larger than the threshold
+                S = np.where((dtable[r] >= 0) & (dtable[r] > cost_eps_convergence))[0]
                 if len(S) == 0:
                     converge_epoch.append(len(dtable[r]))
                 else:
-                    converge_epoch.append(S[0] + 1)
+                    converge_epoch.append(S[-1] + 1)
 
             # Objective
             mean_objective = np.mean(table[:, -1])
@@ -560,11 +571,12 @@ def make_table_cost(config, arg_isr_tables, arg_cost_tables, with_pca=True):
             dtable = np.abs(np.diff(table, axis=1))
             converge_epoch_isr = []
             for r in range(dtable.shape[0]):
-                S = np.where(dtable[r] < isr_eps_convergence)[0]
+                # find first step from the back which is larger than the threshold
+                S = np.where(dtable[r] > isr_eps_convergence)[0]
                 if len(S) == 0:
                     converge_epoch_isr.append(len(dtable[r]))
                 else:
-                    converge_epoch_isr.append(S[0] + 1)
+                    converge_epoch_isr.append(S[-1] + 1)
 
             results.append(
                 {

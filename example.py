@@ -36,12 +36,16 @@ from scipy.io import wavfile
 import bss
 import get_data
 import pyroomacoustics as pra
+
 # Get the data if needed
 from pyroomacoustics.bss import projection_back
-from room_builder import (callback_noise_mixer, choose_target_locations,
-                          convergence_callback, random_locations)
-from routines import (PlaySoundGUI, grid_layout, random_layout,
-                      semi_circle_layout)
+from room_builder import (
+    callback_noise_mixer,
+    choose_target_locations,
+    convergence_callback,
+    random_locations,
+)
+from routines import PlaySoundGUI, grid_layout, random_layout, semi_circle_layout
 from samples.generate_samples import sampling, wav_read_center
 
 samples_dir = "samples/"
@@ -191,7 +195,11 @@ if __name__ == "__main__":
     mic_radius = 0.5 * mic_delta / np.sin(np.pi / n_mics)
     print("mic_radius", mic_radius, "m")
     rel_mics_locs = np.vstack(
-        [mic_radius * np.cos(angles), mic_radius * np.sin(angles), np.zeros(n_mics),]
+        [
+            mic_radius * np.cos(angles),
+            mic_radius * np.sin(angles),
+            np.zeros(n_mics),
+        ]
     )
     mic_locs = mic_array_center[:, None] + rel_mics_locs
     critical_distance = config["room"]["critical_distance_m"]
@@ -306,7 +314,8 @@ if __name__ == "__main__":
     tic = time.perf_counter()
 
     # First evaluation of SDR/SIR
-    # cb_local(X_mics[:, :, :n_sources_target], args.dist)
+    if args.algo != "fastiva":
+        cb_local(X_mics[:, :, :n_sources_target], args.dist)
 
     Y, W = bss.separate(
         X_mics,
