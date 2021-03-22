@@ -20,14 +20,9 @@ config = {
     "master_seed": 8856641,
     "n_repeat": 1000,
     "params": [
-        # {"n_freq": 5, "n_chan": 3, "pca": True},
         {"n_freq": 6, "n_chan": 4, "pca": True},
         {"n_freq": 6, "n_chan": 6, "pca": True},
         {"n_freq": 6, "n_chan": 8, "pca": True},
-        # {"n_freq": 5, "n_chan": 3, "pca": False},
-        # {"n_freq": 6, "n_chan": 4, "pca": False},
-        # {"n_freq": 6, "n_chan": 6, "pca": False},
-        # {"n_freq": 6, "n_chan": 8, "pca": False},
     ],
     "n_frames": 5000,
     "distrib": "laplace",
@@ -38,15 +33,10 @@ config = {
         "auxiva2": {"algo": "auxiva2", "kwargs": {"n_iter": 1000}},
         "auxiva-iss": {"algo": "auxiva-iss", "kwargs": {"n_iter": 1000}},
         "auxiva-ipa": {"algo": "auxiva-ipa", "kwargs": {"n_iter": 1000}},
-        # "auxiva-ipa2": {"algo": "auxiva-ipa2", "kwargs": {"n_iter": 300}},
-        "auxiva-fullhead_1e-5": {
+        "auxiva-fullhead_1e-20": {
             "algo": "auxiva-fullhead",
-            "kwargs": {"tol": 1e-5, "n_iter": 1000},
+            "kwargs": {"tol": 1e-20, "n_iter": 1000},
         },
-        # "auxiva-fullhead_1e-10": {
-        #     "algo": "auxiva-fullhead",
-        #     "kwargs": {"tol": 1e-10, "n_iter": 100},
-        # },
     },
 }
 
