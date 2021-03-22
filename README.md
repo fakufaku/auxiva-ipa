@@ -8,27 +8,27 @@ Scheibler](http://robinscheibler.org).
 Abstract
 --------
 
-We propose a new algorithm for blind source separation of convolutive
-mixtures using independent vector analysis. This is an improvement over the
-popular auxiliary function based independent vector analysis (AuxIVA) with
-iterative projection (IP) or iterative source steering (ISS). We introduce
-iterative projection with adjustment (IPA), whereas we update one demixing
-filter and jointly adjust all the other sources along its current direction. We
-implement this scheme as multiplicative updates by a rank-2 perturbation of the
-identity matrix. Each update involves solving a non-convex minimization problem
-that we term log-quadratically penalized quadratic minimization (LQPQM), that
-we think is of interest beyond this work. We find that the global minimum of an
-LQPQM can be efficiently computed. In the general case, we show that all its
-stationary points can be characterized as zeros of a kind of secular equation,
-reminiscent of modified eigenvalue problems. We further prove that the global
-minimum corresponds to the largest of these zeros. We propose a simple
-procedure based on Newton-Raphson seeded with a good initial point to
-efficiently compute it. We validate the performance of the proposed method for
-blind acoustic source separation via numerical experiments with reverberant
-speech mixtures. We show that not only is the convergence speed faster in terms
-of iterations, but each update is also computationally cheaper. Notably, for
-four and five sources, AuxIVA with IPA converges more than twice as fast as
-competing methods.
+We propose a new algorithm for blind source separation (BSS) using independent
+vector analysis (IVA). This is an improvement over the popular auxiliary
+function based IVA (AuxIVA) with iterative projection (IP) or iterative source
+steering (ISS). We introduce iterative projection with adjustment (IPA), where
+we update one demixing filter and jointly adjust all the other sources along
+its current direction. Each update involves solving a non-convex minimization
+problem that we term log-quadratically penalized quadratic minimization
+(LQPQM), that we think is of interest beyond this work. In the general case, we
+show that its global minimum corresponds to the largest root of a univariate
+function, reminiscent of modified eigenvalue problems. We propose a simple
+procedure based on Newton-Raphson to efficiently compute it. Numerical
+experiments demonstrate the effectiveness of the proposed method. First, we
+show that it efficiently decreases the value of the surrogate function. In
+further experiments on synthetic mixtures, we study the probability of finding
+the true demixing matrix and convergence speed. We show that the proposed
+method combines high success rate and fast convergence. Finally, we validate
+the performance on a reverberant blind speech separation task. We find that all
+the AuxIVA-based methods perform similarly in terms of acoustic BSS metrics.
+However, AuxIVA-IPA converges faster. We measure up to 8.5 times speed-up in
+terms of runtime compared to the next best AuxIVA-based method, depending on
+the number of channels and the signal-to-noise ratio (SNR).
 
 Author
 ------
@@ -39,13 +39,17 @@ Author
 Summary of Experiments
 ----------------------
 
-### Experiment 1: Separation performance
+### Solve Random SeDJoCo Problems
 
-Separation performance for different numbers of sources and microphones.
+Evaluate the performance of the proposed method to minimize the surrogate function only.
 
-### Experiment 2: Speed contest
+### Separation of Synthetic Mixtures
 
-Plot iterations/runtime of algorithm vs SIR.
+Evaluate many IVA algorithms for the separation of data following the spherical Laplace distribution.
+
+### Separation of Reverberant Speech Mixtures
+
+Evaluate the performance of many IVA algorithms for the separation of reverberant speech.
 
 Test Run the Algorithms
 -----------------------
@@ -92,6 +96,27 @@ The full usage instructions is provided below.
 Reproduce the Results
 ---------------------
 
+The script `prepare_figures.sh` was used to prepare the figures of the paper.
+If the simulations are re-run, it should be edited to adjust the result file names.
+
+### Random SeDJoCo Problems
+
+        # Run the simulation, creates <result_file> in `data/` folder
+        python ./experiment_head.py
+        
+        # Create the figure
+        python ./experiment_head_plot.py data/<result_file>
+
+### Separation of Synthetic Mixtures
+
+        # Run the simulation, creates <result_file> in `data/` folder
+        python ./experiment_iva.py
+        
+        # Create the figure
+        python ./experiment_iva_plot.py data/<result_file>
+
+### Separation of Reverberant Speech Mixtures
+
 The code can be run serially, or using multiple parallel workers via
 [ipyparallel](https://ipyparallel.readthedocs.io/en/latest/).
 Moreover, it is possible to only run a few loops to test whether the
@@ -132,9 +157,19 @@ containing the following files
     arguments.json  # the list of all combinations of arguments simulated
     data.json  # the results of the simulation
 
-Figure 1., 2., 3., and 4. from the paper are produced then by running
 
-    ./prepare_figures.sh
+The figures and tables can be produced as follows.
+
+    # figure with box-plots of SDR/SIR
+    python ./make_figure3_journal_ipa_separation_hist.py \
+      ./data/<result_folder>/ --pca
+
+    # figure with wall-clock vs SDR/SIR
+    python ./make_figure4_journal_ip_speed_contest.py \
+      ./data/<result_folder>/ --pca --pickle
+
+    # runtime table
+    python ./make_table_runtime.py data/<result_folder>/ --pickle
 
 License
 -------
