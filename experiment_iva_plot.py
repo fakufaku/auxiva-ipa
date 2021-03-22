@@ -28,6 +28,7 @@ title_dict = {
     "auxiva-fullhead": "FH",
     "auxiva-fullhead_1e-5": "SeDJoCo",
     "auxiva-fullhead_1e-10": "SeDJoCo",
+    "auxiva-fullhead_1e-20": "SeDJoCo",
     "fastiva": "FastIVA",
 }
 
@@ -38,7 +39,7 @@ include_algos = [
     "auxiva-iss",
     "auxiva2",
     "auxiva-ipa",
-    "auxiva-fullhead_1e-5",
+    "auxiva-fullhead_1e-20",
 ]
 
 include_algos_cost = [
@@ -46,7 +47,7 @@ include_algos_cost = [
     "auxiva-iss",
     "auxiva2",
     "auxiva-ipa",
-    "auxiva-fullhead_1e-5",
+    "auxiva-fullhead_1e-20",
 ]
 
 
